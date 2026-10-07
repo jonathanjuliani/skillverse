@@ -1,0 +1,14 @@
+{
+  "name": "skillverse",
+  "version": "0.1.0",
+  "description": "See every skill your Claude Code session has: a tree grouped by plugin, the links between skills, what they cost in context, how often you used them, and an interactive 3D web view.",
+  "author": {
+    "name": "Jonathan Juliani",
+    "url": "https://github.com/jonathanjuliani"
+  },
+  "homepage": "https://github.com/jonathanjuliani/skillverse",
+  "repository": "https://github.com/jonathanjuliani/skillverse",
+  "license": "MIT",
+  "keywords": ["skills", "plugins", "context", "tokens", "graph", "visualization", "mod"],
+  "types": "./types/index.d.ts"
+}

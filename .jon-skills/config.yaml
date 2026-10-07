@@ -1,0 +1,86 @@
+# Conventions for this repo, read by the jon skills (resolve-conventions first).
+# Each entry: the value in force, its tier (detected | company | personal | community),
+# and the evidence. Personal defaults were adopted for this repo on 2026-10-07, so
+# they are now what detection finds.
+
+repo: skillverse
+
+# Tier 2 is deliberately empty: this is a personal open-source project. No company
+# or employer standard applies here, even when a company standards skill is installed
+# on the machine. Resolve every convention from this file and the personal defaults.
+company: none
+personal_defaults: jonathanjuliani/skills (plugin jon), resolve-conventions/defaults.yaml
+
+shape:
+  value: single package
+  tier: detected
+  evidence: one package.json at the root; the repo is a Claude Code plugin (.claude-plugin/plugin.json) and an npm package (tui/)
+  surfaces:
+    - plugin: hooks/ (Claude Code function-hooks module, the pane)
+    - server: server/skillverse-server.mjs (Node, local web view server)
+    - web: web/index.html (static page, libraries from a CDN)
+    - cli: tui/skillverse.mjs (terminal app, the npm package)
+
+conventions:
+  module_system:
+    value: esm
+    tier: detected
+    evidence: package.json "type": "module"
+
+  typescript:
+    value: strict
+    tier: detected
+    evidence: tsconfig.json extends the engine config (strict, noUncheckedIndexedAccess); tsconfig.build.json strict
+
+  types_style:
+    value: type aliases; interface only for declaration merging
+    tier: detected
+    evidence: types/index.d.ts uses interface only to merge PluginState into the engine's module
+
+  naming:
+    value: kebab-case files, PascalCase types, camelCase values, UPPER_SNAKE_CASE constants
+    tier: detected
+    evidence: hooks/*.ts, tui/skillverse.mjs, server/skillverse-server.mjs, scripts/sync-version.mjs
+
+  package_manager:
+    value: pnpm
+    tier: detected
+    evidence: pnpm-lock.yaml, package.json "packageManager": "pnpm@9.12.0"
+    note: the release workflow publishes with npm, which signs the provenance statement
+
+  lint_format:
+    value: biome
+    tier: detected
+    evidence: biome.json (recommended rules; single quotes, no semicolons, trailing commas, width 140)
+
+  test_runner:
+    value: vitest for tests/unit/*.spec.ts; claude plugin test for tests/*.test.ts
+    tier: detected
+    evidence: vitest.config.ts; tests/*.test.ts import claude-code/testing
+    exception: tests that load the plugin need Claude Code's own test kit, so they cannot run on Vitest
+
+  validation:
+    value: hand-written parsing at each boundary
+    tier: detected
+    evidence: server clean(), ui.message narrowing, JSON reads in hooks/register.tsx
+    exception: Zod (personal default) cannot run here. The hooks module imports only the plugin's own files (no node_modules), and the plugin folder ships without node_modules (marketplace install), so the server cannot import it either.
+
+  release:
+    value: manual semver
+    tier: detected
+    evidence: CHANGELOG.md (Keep a Changelog), pnpm version + scripts/sync-version.mjs, tag-driven release workflow
+
+  docs_style:
+    value: no em-dashes in code comments or docs
+    tier: personal
+    evidence: ts-standards; none in the repo
+
+  errors:
+    value: no silent catch; a fallback logs its reason to Claude Code's debug log
+    tier: personal
+    evidence: ts-standards; safe() in hooks/register.tsx
+
+  agent_instructions:
+    value: AGENTS.md (CLAUDE.md imports it), CONTEXT.md for vocabulary
+    tier: personal
+    evidence: agent-instructions

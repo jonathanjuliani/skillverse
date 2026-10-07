@@ -1,0 +1,57 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: One version in package.json, plugin.json and marketplace.json
+        run: pnpm run check-version
+
+      - name: Lint and format
+        run: pnpm run lint
+
+      - name: Unit tests (pure modules, version script, web view server)
+        run: pnpm test
+
+      # The plugin API is early access: validate and test against the current Claude Code.
+      - name: Install Claude Code
+        run: npm install -g @anthropic-ai/claude-code
+
+      - name: Validate the plugin
+        run: pnpm run validate
+
+      - name: Plugin tests (the pane, against the engine)
+        run: pnpm run test:plugin
+
+      # tsconfig.json extends the types Claude Code writes when it loads the plugin (above).
+      - name: Type check
+        run: pnpm run typecheck
+
+      - name: Build and run the terminal app
+        run: |
+          pnpm run build
+          node tui/skillverse.mjs --scan --snapshot 100x30 --frames 5 --plain
+
+      - name: The npm package installs and runs
+        run: |
+          pnpm pack --pack-destination /tmp
+          mkdir /tmp/try && cd /tmp/try && npm init -y >/dev/null
+          npm install /tmp/jonathanjuliani-skillverse-*.tgz
+          ./node_modules/.bin/skillverse --scan --snapshot 80x20 --frames 2 --plain

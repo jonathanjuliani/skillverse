@@ -1,0 +1,10 @@
+# Written by Claude Code when it loads the plugin
+.claude-plugin/types/
+
+# Built for the npm package (pnpm run build)
+tui/lib/
+
+node_modules/
+*.log
+*.tgz
+.DS_Store

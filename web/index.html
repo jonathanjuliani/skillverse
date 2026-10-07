@@ -1,0 +1,1144 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Skillverse</title>
+<style>
+  :root {
+    --bg: #04060c;
+    --panel: #0b0f1a;
+    --panel-2: #111827;
+    --line: #1f2937;
+    --text: #e5e7eb;
+    --muted: #8b95a7;
+    --accent: #7aa2f7;
+    --radius: 10px;
+    font-family: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text); overflow: hidden; }
+  button, input { font: inherit; color: inherit; }
+
+  header {
+    height: 52px; display: flex; align-items: center; gap: 12px; padding: 0 16px;
+    border-bottom: 1px solid var(--line); background: linear-gradient(180deg, #0a0f1d, #05070e);
+  }
+  .brand { font-weight: 650; letter-spacing: .2px; white-space: nowrap; }
+  .stats { color: var(--muted); font-size: 13px; white-space: nowrap; }
+  .tabs { display: flex; gap: 4px; background: var(--panel-2); border: 1px solid var(--line); border-radius: 999px; padding: 3px; }
+  .tabs button { border: 0; background: transparent; padding: 5px 14px; border-radius: 999px; cursor: pointer; color: var(--muted); }
+  .tabs button[aria-pressed="true"] { background: var(--accent); color: #0b1020; font-weight: 600; }
+  .search { margin-left: auto; position: relative; }
+  .search input {
+    width: 260px; max-width: 40vw; padding: 7px 12px; border-radius: 999px; border: 1px solid var(--line);
+    background: var(--panel-2); outline: none;
+  }
+  .search input:focus { border-color: var(--accent); }
+
+  main { position: absolute; inset: 52px 0 0 0; display: flex; }
+  #stage { position: relative; flex: 1; min-width: 0; }
+  .view { position: absolute; inset: 0; display: none; }
+  .view.active { display: block; }
+  #loading {
+    position: absolute; inset: 0; display: none; place-items: center; color: var(--muted); font-size: 14px; pointer-events: none;
+  }
+  #loading.on { display: grid; }
+
+  #legend {
+    position: absolute; left: 12px; bottom: 12px; max-height: 45%; width: 240px; overflow: auto;
+    background: rgba(11, 15, 26, .82); backdrop-filter: blur(6px); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 8px; font-size: 12px;
+  }
+  #legend h3 { margin: 2px 4px 6px; font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); }
+  .region-row { display: flex; align-items: center; gap: 8px; padding: 4px 6px; border-radius: 6px; cursor: pointer; }
+  .region-row:hover { background: var(--panel-2); }
+  .region-row .count { margin-left: auto; color: var(--muted); }
+  .dot { width: 9px; height: 9px; border-radius: 50%; flex: none; box-shadow: 0 0 8px currentColor; }
+
+  #live {
+    position: absolute; left: 12px; top: 12px; width: 300px; max-height: 46%; display: flex; flex-direction: column;
+    background: rgba(11, 15, 26, .86); backdrop-filter: blur(6px); border: 1px solid var(--line); border-radius: var(--radius);
+    font-size: 12px; overflow: hidden;
+  }
+  #live header { all: unset; display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-bottom: 1px solid var(--line); }
+  #live .pulse { width: 8px; height: 8px; border-radius: 50%; background: #4b5563; flex: none; }
+  #live.on .pulse { background: #f43f5e; box-shadow: 0 0 0 0 rgba(244,63,94,.6); animation: pulse 1.6s infinite; }
+  @keyframes pulse { 70% { box-shadow: 0 0 0 9px rgba(244,63,94,0); } 100% { box-shadow: 0 0 0 0 rgba(244,63,94,0); } }
+  #live .title { font-weight: 650; letter-spacing: .04em; }
+  #live .meta { color: var(--muted); margin-left: auto; white-space: nowrap; }
+  #live .tools { display: flex; gap: 6px; padding: 6px 10px; border-bottom: 1px solid var(--line); }
+  #live .tools button { border: 1px solid var(--line); background: var(--panel-2); border-radius: 6px; padding: 3px 8px; cursor: pointer; font-size: 12px; }
+  #live .tools button[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); }
+  #feed { overflow: auto; padding: 4px 6px 8px; }
+  .ev { display: flex; align-items: center; gap: 6px; padding: 3px 4px; border-radius: 6px; cursor: pointer; white-space: nowrap; }
+  .ev:hover { background: var(--panel-2); }
+  .ev .t { color: var(--muted); font-variant-numeric: tabular-nums; }
+  .ev .name { overflow: hidden; text-overflow: ellipsis; }
+  .ev .from { color: var(--muted); overflow: hidden; text-overflow: ellipsis; }
+  .ev .session { font-size: 10px; padding: 1px 5px; border-radius: 999px; flex: none; color: #0b1020; font-weight: 600; max-width: 90px; overflow: hidden; text-overflow: ellipsis; }
+  #live select { margin-left: auto; background: var(--panel-2); color: inherit; border: 1px solid var(--line); border-radius: 6px; font-size: 12px; padding: 2px 4px; max-width: 120px; }
+  .ev .agent { font-size: 10px; padding: 1px 5px; border-radius: 999px; background: #3b2a5c; color: #d8c4ff; flex: none; }
+  .ev.turn { color: var(--muted); justify-content: center; cursor: default; font-size: 11px; }
+  .ev.new { animation: flash 1.2s ease-out; }
+  @keyframes flash { from { background: rgba(122,162,247,.35); } to { background: transparent; } }
+
+  #hint {
+    position: absolute; right: 12px; bottom: 12px; font-size: 12px; color: var(--muted);
+    background: rgba(11, 15, 26, .7); border: 1px solid var(--line); border-radius: 999px; padding: 5px 12px;
+  }
+
+  aside {
+    width: 420px; flex: none; border-left: 1px solid var(--line); background: var(--panel);
+    display: flex; flex-direction: column; min-height: 0;
+  }
+  .panel-head { padding: 16px 18px 12px; border-bottom: 1px solid var(--line); }
+  .panel-head h2 { margin: 0 0 6px; font-size: 18px; word-break: break-word; }
+  .chip {
+    display: inline-flex; align-items: center; gap: 6px; font-size: 12px; padding: 3px 9px; border-radius: 999px;
+    border: 1px solid var(--line); background: var(--panel-2); cursor: pointer; margin: 0 6px 6px 0; max-width: 100%;
+  }
+  .chip span:last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .meta { color: var(--muted); font-size: 12px; word-break: break-all; margin-top: 4px; }
+  .desc { margin: 10px 0 0; font-size: 14px; line-height: 1.45; }
+  .actions { display: flex; gap: 8px; margin-top: 12px; }
+  .actions button {
+    border: 1px solid var(--line); background: var(--panel-2); border-radius: 8px; padding: 6px 10px; cursor: pointer; font-size: 13px;
+  }
+  .actions button.primary { background: var(--accent); color: #0b1020; border-color: transparent; font-weight: 600; }
+  .panel-body { overflow: auto; padding: 4px 18px 24px; min-height: 0; }
+  .panel-body h4 { margin: 16px 0 8px; font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); }
+  .empty { color: var(--muted); padding: 24px 18px; line-height: 1.5; }
+  .md { font-size: 13.5px; line-height: 1.55; }
+  .md pre { background: #070a12; border: 1px solid var(--line); border-radius: 8px; padding: 10px; overflow: auto; }
+  .md code { font-size: 12.5px; }
+  .md table { border-collapse: collapse; font-size: 12.5px; display: block; overflow: auto; }
+  .md th, .md td { border: 1px solid var(--line); padding: 4px 6px; }
+  .md a { color: var(--accent); }
+
+  .scene-tooltip { font-size: 12px !important; }
+
+  @media (max-width: 900px) {
+    aside { position: absolute; left: 0; right: 0; bottom: 0; height: 45%; width: auto; border-left: 0; border-top: 1px solid var(--line); }
+    #legend { display: none; }
+    #live { width: auto; right: 12px; max-height: 30%; }
+    .stats { display: none; }
+  }
+</style>
+<script src="data.js"></script>
+</head>
+<body>
+<header>
+  <div class="brand">Skillverse</div>
+  <div class="stats" id="stats"></div>
+  <div class="tabs" role="group" aria-label="View">
+    <button data-view="globe" aria-pressed="true">Globe</button>
+    <button data-view="3d" aria-pressed="false">3D</button>
+    <button data-view="2d" aria-pressed="false">2D</button>
+  </div>
+  <div class="search"><input id="search" type="search" placeholder="Find a skill…  (Enter jumps)" autocomplete="off"></div>
+</header>
+<main>
+  <div id="stage">
+    <div class="view" id="view-globe"></div>
+    <div class="view" id="view-3d"></div>
+    <div class="view" id="view-2d"></div>
+    <div id="loading">Loading view…</div>
+    <div id="legend"><h3>Regions</h3><div id="legend-rows"></div></div>
+    <div id="live">
+      <header><span class="pulse"></span><span class="title">LIVE</span><span class="meta" id="live-meta">waiting for activity</span></header>
+      <div class="tools">
+        <button id="live-follow" aria-pressed="true" title="Camera follows each skill as it fires">Follow</button>
+        <button id="live-demo" title="Play a made-up chain of skills to see the effect">Simulate</button>
+        <button id="live-clear" title="Clear trails and the feed">Clear</button>
+        <select id="live-session" title="Whose activity to show"><option value="">All sessions</option></select>
+      </div>
+      <div id="feed"></div>
+    </div>
+    <div id="hint">drag to rotate · scroll to zoom · click a skill</div>
+  </div>
+  <aside>
+    <div id="panel-head" class="panel-head" hidden></div>
+    <div id="panel-body" class="panel-body"></div>
+  </aside>
+</main>
+
+<script>
+const CDN = {
+  globe: 'https://cdn.jsdelivr.net/npm/globe.gl@2.46.2',
+  '3d': 'https://cdn.jsdelivr.net/npm/3d-force-graph@1.80.1',
+  '2d': 'https://cdn.jsdelivr.net/npm/force-graph@1.52.0',
+  marked: 'https://cdn.jsdelivr.net/npm/marked@12.0.2/marked.min.js',
+  purify: 'https://cdn.jsdelivr.net/npm/dompurify@3.4.16/dist/purify.min.js',
+}
+
+const DATA = window.SKILLVERSE || { skills: [], regions: [] }
+const skills = DATA.skills
+const regions = DATA.regions
+const deg = r => (r * 180) / Math.PI
+const neighbours = skills.map(() => new Set())
+const pairs = []
+{
+  const seen = new Set()
+  skills.forEach((skill, i) => {
+    skill.i = i
+    for (const j of skill.links) {
+      neighbours[i].add(j)
+      neighbours[j].add(i)
+      const key = Math.min(i, j) + '-' + Math.max(i, j)
+      if (!seen.has(key)) { seen.add(key); pairs.push([i, j]) }
+    }
+  })
+}
+const incoming = skills.map(() => [])
+skills.forEach((skill, i) => skill.links.forEach(j => incoming[j].push(i)))
+
+const state = { view: 'globe', selected: -1, hover: -1, matches: new Set(), history: [] }
+const views = {}
+
+const scripts = {}
+function load(url) {
+  return (scripts[url] ||= new Promise((resolve, reject) => {
+    const tag = document.createElement('script')
+    tag.src = url
+    tag.onload = resolve
+    tag.onerror = () => reject(new Error('Could not load ' + url))
+    document.head.appendChild(tag)
+  }))
+}
+
+const colorOf = i => regions[skills[i].region]?.color || '#7aa2f7'
+const alpha = (hex, a) => {
+  const n = parseInt(hex.slice(1), 16)
+  return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${a})`
+}
+const isLitLink = ([a, b]) => a === state.selected || b === state.selected || a === state.hover || b === state.hover
+const isRelated = i =>
+  state.selected < 0 && state.hover < 0
+    ? true
+    : i === state.selected || i === state.hover || neighbours[state.selected]?.has(i) || neighbours[state.hover]?.has(i)
+const escapeHtml = text => String(text).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c])
+const tooltip = i =>
+  `<div style="padding:4px 6px"><b>${escapeHtml(skills[i].id)}</b><br><span style="opacity:.7">${escapeHtml(regions[skills[i].region]?.label || '')}</span></div>`
+
+/** Pulls each node toward its region's centre so regions stay together. */
+function clusterForce(centreOf, strength) {
+  let nodes = []
+  const force = a => {
+    for (const node of nodes) {
+      const c = centreOf(node)
+      node.vx += (c.x - node.x) * strength * a
+      node.vy += (c.y - node.y) * strength * a
+      if (c.z !== undefined && node.vz !== undefined) node.vz += (c.z - node.z) * strength * a
+    }
+  }
+  force.initialize = list => (nodes = list)
+  return force
+}
+
+function destination(lat, lon, bearing, distance) {
+  const toLat = Math.asin(Math.sin(lat) * Math.cos(distance) + Math.cos(lat) * Math.sin(distance) * Math.cos(bearing))
+  return [toLat, lon + Math.atan2(Math.sin(bearing) * Math.sin(distance) * Math.cos(lat), Math.cos(distance) - Math.sin(lat) * Math.sin(toLat))]
+}
+
+// ---- Globe -------------------------------------------------------------
+views.globe = {
+  async init(el) {
+    await load(CDN.globe)
+    const continents = {
+      type: 'FeatureCollection',
+      features: regions.map(region => {
+        const edge = []
+        for (let k = 0; k < 96; k++) {
+          const [lat, lon] = destination(region.lat, region.lon, (k / 96) * Math.PI * 2, region.cap)
+          edge.push([deg(lon), deg(lat)])
+        }
+        let ring
+        if (region.cap >= Math.PI / 2 - Math.abs(region.lat)) {
+          // The cap covers a pole: a plain outline cannot say so. Walk the edge by
+          // longitude, then close the shape over the pole.
+          const pole = region.lat >= 0 ? 90 : -90
+          const around = edge.map(([lon, lat]) => [((lon + 540) % 360) - 180, lat]).sort((a, b) => a[0] - b[0])
+          ring = [...around, [180, around[around.length - 1][1]], [180, pole], [-180, pole], [-180, around[0][1]], around[0]]
+          // The outline's direction says which side is inside: clockwise around the cap.
+          if (pole > 0) ring.reverse()
+        } else {
+          ring = [...edge, edge[0]]
+        }
+        return { type: 'Feature', properties: { color: region.color }, geometry: { type: 'Polygon', coordinates: [ring] } }
+      }),
+    }
+    const globe = Globe()(el)
+      .backgroundColor('#04060c')
+      .showAtmosphere(true)
+      .atmosphereColor('#6d8cff')
+      .atmosphereAltitude(0.2)
+      .showGraticules(true)
+      .polygonsData(continents.features)
+      .polygonCapColor(f => alpha(f.properties.color, 0.16))
+      .polygonSideColor(() => 'rgba(0,0,0,0)')
+      .polygonStrokeColor(f => alpha(f.properties.color, 0.55))
+      .polygonAltitude(0.007)
+      .polygonCapCurvatureResolution(1)
+      .pointsData(skills)
+      .pointLat(d => deg(d.lat))
+      .pointLng(d => deg(d.lon))
+      .pointAltitude(d => (d.i === state.selected ? 0.06 : 0.008) + glowOf(d.i) * 0.14)
+      .pointRadius(d => (d.i === state.selected ? 0.8 : 0.38 + Math.min(0.35, Math.sqrt(neighbours[d.i].size) * 0.08)) + glowOf(d.i) * 0.5 + Math.min(0.25, heatOf(d.i) * 0.05))
+      .pointResolution(16)
+      .pointColor(d => (glowOf(d.i) > 0 ? mixHex(colorOf(d.i), '#ffffff', 0.55 * glowOf(d.i)) : isRelated(d.i) || state.matches.has(d.i) || heatOf(d.i) > 0 ? colorOf(d.i) : alpha(colorOf(d.i), 0.25)))
+      .ringsData([])
+      .ringLat(r => deg(skills[r.i].lat))
+      .ringLng(r => deg(skills[r.i].lon))
+      .ringAltitude(0.01)
+      .ringColor(r => t => alpha(r.isBranch ? '#c4a7ff' : colorOf(r.i), Math.max(0, 1 - t) * r.strength))
+      .ringMaxRadius(5)
+      .ringPropagationSpeed(3.2)
+      .ringRepeatPeriod(650)
+      .pointLabel(d => tooltip(d.i))
+      .onPointClick(d => select(d.i, true))
+      .onPointHover(d => {
+        state.hover = d ? d.i : -1
+        globe.controls().autoRotate = !d && state.selected < 0
+        el.style.cursor = d ? 'pointer' : 'grab'
+        refresh()
+      })
+      .arcsData(pairs)
+      .arcStartLat(p => deg(skills[ends(p)[0]].lat))
+      .arcStartLng(p => deg(skills[ends(p)[0]].lon))
+      .arcEndLat(p => deg(skills[ends(p)[1]].lat))
+      .arcEndLng(p => deg(skills[ends(p)[1]].lon))
+      .arcAltitudeAutoScale(0.35)
+      .arcAltitude(p => (p.live ? 0.18 + Math.min(0.35, arcSpan(p) * 0.25) : null))
+      .arcColor(p =>
+        p.live === 'comet'
+          ? [alpha(p.isBranch ? '#c4a7ff' : colorOf(p.from), 0.15), p.isBranch ? '#efe5ff' : '#ffffff']
+          : p.live === 'trail'
+            ? [alpha(p.isBranch ? '#c4a7ff' : colorOf(p.from), 0.45), alpha(p.isBranch ? '#c4a7ff' : colorOf(p.to), 0.45)]
+            : isLitLink(p)
+              ? [colorOf(p[0]), colorOf(p[1])]
+              : ['rgba(150,165,200,0.16)', 'rgba(150,165,200,0.16)'],
+      )
+      .arcStroke(p => (p.live === 'comet' ? 1.1 : p.live === 'trail' ? 0.45 : isLitLink(p) ? 0.55 : 0.12))
+      .arcDashLength(p => (p.live === 'comet' ? 0.3 : p.live === 'trail' ? 0.04 : isLitLink(p) ? 0.45 : 1))
+      .arcDashGap(p => (p.live === 'comet' ? 1.4 : p.live === 'trail' ? 0.02 : isLitLink(p) ? 0.15 : 0))
+      .arcDashInitialGap(p => (p.live === 'comet' ? 1 : 0))
+      .arcDashAnimateTime(p => (p.live === 'comet' ? 1500 : p.live === 'trail' ? 0 : isLitLink(p) ? 1600 : 0))
+      .labelsData(regions)
+      .labelLat(r => deg(r.isSkill ? skills[r.i].lat : r.lat))
+      .labelLng(r => deg(r.isSkill ? skills[r.i].lon : r.lon))
+      .labelText(r => (r.isSkill ? skills[r.i].name : r.label))
+      .labelColor(r => (r.isSkill ? '#ffffff' : alpha(r.color, 0.95)))
+      .labelSize(r => (r.isSkill ? 1.1 : 0.6 + Math.min(1.2, Math.sqrt(r.count) * 0.18)))
+      .labelDotRadius(0)
+      .labelAltitude(r => (r.isSkill ? 0.09 : 0.03))
+      .labelResolution(2)
+    const material = globe.globeMaterial()
+    material.color.set('#0a1224')
+    if (material.emissive) material.emissive.set('#050914')
+    material.shininess = 6
+    globe.controls().autoRotate = true
+    globe.controls().autoRotateSpeed = 0.35
+    globe.pointOfView({ altitude: 2.4 })
+    this.globe = globe
+    this.resize = () => globe.width(el.clientWidth).height(el.clientHeight)
+  },
+  refresh() {
+    const g = this.globe
+    g.pointsData(skills)
+      .arcsData([...pairs, ...liveArcs()])
+      .ringsData(liveRings())
+      .labelsData([...regions, ...liveLabels()])
+  },
+  fly(i) { this.globe.pointOfView({ lat: deg(skills[i].lat), lng: deg(skills[i].lon), altitude: 1.7 }, 1100) },
+  spin(isOn) { this.globe.controls().autoRotate = isOn },
+  focus(i) { this.globe.pointOfView({ lat: deg(skills[i].lat), lng: deg(skills[i].lon), altitude: 1.3 }, 1200) },
+  focusRegion(r) { this.globe.pointOfView({ lat: deg(regions[r].lat), lng: deg(regions[r].lon), altitude: 1.6 + regions[r].cap }, 1200) },
+  pause() { this.globe.pauseAnimation() },
+  resume() { this.globe.resumeAnimation() },
+}
+
+// ---- Shared graph data for 3D and 2D -------------------------------------
+function graphData(dimensions) {
+  const nodes = skills.map((skill, i) => {
+    const region = regions[skill.region]
+    const node = { i }
+    if (dimensions === 3) {
+      const c = region.centre3
+      Object.assign(node, { x: c.x + (Math.random() - 0.5) * 30, y: c.y + (Math.random() - 0.5) * 30, z: c.z + (Math.random() - 0.5) * 30 })
+    } else {
+      Object.assign(node, { x: skill.x * 5, y: skill.y * 5 })
+    }
+    return node
+  })
+  return { nodes, links: pairs.map(([a, b]) => ({ source: a, target: b, pair: [a, b] })) }
+}
+regions.forEach(region => {
+  const r = 320
+  region.centre3 = { x: r * Math.cos(region.lat) * Math.cos(region.lon), y: r * Math.sin(region.lat), z: r * Math.cos(region.lat) * Math.sin(region.lon) }
+  region.centre2 = { x: region.x * 5, y: region.y * 5 }
+})
+
+// ---- 3D -------------------------------------------------------------------
+views['3d'] = {
+  async init(el) {
+    await load(CDN['3d'])
+    const data = graphData(3)
+    const graph = ForceGraph3D()(el)
+      .backgroundColor('#04060c')
+      .showNavInfo(false)
+      .graphData(data)
+      .nodeId('i')
+      .nodeRelSize(3)
+      .nodeVal(n => 1 + neighbours[n.i].size * 0.5 + glowOf(n.i) * 5)
+      .nodeColor(n => (glowOf(n.i) > 0 ? mixHex(colorOf(n.i), '#ffffff', 0.6 * glowOf(n.i)) : isRelated(n.i) || state.matches.has(n.i) || heatOf(n.i) > 0 ? colorOf(n.i) : alpha(colorOf(n.i), 0.35)))
+      .nodeOpacity(0.95)
+      .nodeResolution(14)
+      .nodeLabel(n => tooltip(n.i))
+      .linkColor(l => (isLitLink(l.pair) ? colorOf(l.pair[0]) : 'rgba(140,155,190,0.22)'))
+      .linkWidth(l => (isLitLink(l.pair) ? 1.4 : 0))
+      .linkOpacity(0.5)
+      .linkDirectionalParticles(l => (isLitLink(l.pair) ? 4 : 0))
+      .linkDirectionalParticleWidth(2)
+      .linkDirectionalParticleSpeed(0.006)
+      .onNodeClick(n => select(n.i, true))
+      .onNodeHover(n => {
+        state.hover = n ? n.i : -1
+        el.style.cursor = n ? 'pointer' : 'grab'
+        refresh()
+      })
+      .cooldownTicks(160)
+      .onEngineStop(() => {
+        if (this.isSettled) return
+        this.isSettled = true
+        if (state.selected >= 0) this.focus(state.selected)
+        else graph.zoomToFit(900, 40)
+      })
+    graph.d3Force('charge').strength(-45)
+    graph.d3Force('cluster', clusterForce(n => regions[skills[n.i].region].centre3, 0.08))
+    this.graph = graph
+    this.nodes = data.nodes
+    this.el = el
+    this.resize = () => graph.width(el.clientWidth).height(el.clientHeight)
+    this.labels = document.createElement('div')
+    this.labels.style.cssText = 'position:absolute;inset:0;pointer-events:none;overflow:hidden'
+    el.appendChild(this.labels)
+    this.fx = { halos: new Map(), trails: new Map(), labels: new Map() }
+    const step = () => {
+      if (this.isActive) this.drawLive()
+      requestAnimationFrame(step)
+    }
+    requestAnimationFrame(step)
+  },
+  /** Constructors and materials borrowed from the graph's own objects (three.js is not a global). */
+  kit() {
+    if (this.parts) return this.parts
+    const mesh = this.nodes.find(n => n.__threeObj)?.__threeObj
+    const line = this.graph.graphData().links.find(l => l.__lineObj && l.__lineObj.type === 'Line')?.__lineObj
+    if (!mesh || !line) return null
+    this.parts = {
+      sphere: () => new mesh.geometry.constructor(1, 18, 14),
+      mesh: (geometry, material) => new mesh.constructor(geometry, material),
+      glowMaterial: color => {
+        const m = mesh.material.clone()
+        m.color.set(color)
+        if (m.emissive) m.emissive.set(color)
+        m.transparent = true
+        m.depthWrite = false
+        return m
+      },
+      line: points => {
+        const geometry = new line.geometry.constructor()
+        geometry.setFromPoints(points)
+        const material = line.material.clone()
+        material.transparent = true
+        material.depthWrite = false
+        return new line.constructor(geometry, material)
+      },
+    }
+    return this.parts
+  },
+  /** The arc a path takes: bowed out from the graph's centre, as the globe's arcs rise off its surface. */
+  curve(a, b, steps) {
+    const mid = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2, z: (a.z + b.z) / 2 }
+    const span = Math.hypot(a.x - b.x, a.y - b.y, a.z - b.z)
+    const out = Math.hypot(mid.x, mid.y, mid.z) || 1
+    const lift = 1 + Math.min(0.6, span / 400)
+    const c = { x: (mid.x / out) * out * lift, y: (mid.y / out) * out * lift, z: (mid.z / out) * out * lift }
+    return Array.from({ length: steps + 1 }, (_, k) => {
+      const t = k / steps
+      const u = 1 - t
+      return { x: u * u * a.x + 2 * u * t * c.x + t * t * b.x, y: u * u * a.y + 2 * u * t * c.y + t * t * b.y, z: u * u * a.z + 2 * u * t * c.z + t * t * b.z }
+    })
+  },
+  /** Glows, shockwaves, comets with trails and floating names, redrawn every frame from the live state. */
+  drawLive() {
+    const kit = this.kit()
+    if (!kit) return
+    const scene = this.graph.scene()
+    const now = Date.now()
+    const radiusOf = i => Math.cbrt(1 + neighbours[i].size * 0.5 + glowOf(i) * 5) * 3
+
+    // Halos and shockwaves on skills that fired.
+    for (const [i] of live.glow) {
+      const g = glowOf(i)
+      const node = this.nodes[i]
+      let fx = this.fx.halos.get(i)
+      if (g <= 0 || node.x === undefined) {
+        if (fx) {
+          scene.remove(fx.halo, fx.wave)
+          this.fx.halos.delete(i)
+        }
+        continue
+      }
+      if (!fx) {
+        fx = { halo: kit.mesh(kit.sphere(), kit.glowMaterial(colorOf(i))), wave: kit.mesh(kit.sphere(), kit.glowMaterial(colorOf(i))) }
+        scene.add(fx.halo, fx.wave)
+        this.fx.halos.set(i, fx)
+      }
+      const r = radiusOf(i)
+      const pulse = 1 + 0.25 * Math.sin(now / 160)
+      fx.halo.position.set(node.x, node.y, node.z)
+      fx.halo.scale.setScalar(r * (1.25 + 0.6 * g) * pulse)
+      fx.halo.material.opacity = 0.3 * g
+      const phase = (now % 900) / 900
+      fx.wave.position.set(node.x, node.y, node.z)
+      fx.wave.scale.setScalar(r * (1.2 + phase * 2.6))
+      fx.wave.material.opacity = 0.22 * g * (1 - phase) ** 2
+    }
+
+    for (const [i, fx] of this.fx.halos) {
+      if (glowOf(i) <= 0) {
+        scene.remove(fx.halo, fx.wave)
+        this.fx.halos.delete(i)
+      }
+    }
+
+    // Paths: a comet along the arc while fresh, then a fading trail.
+    const seen = new Set()
+    for (const p of live.paths) {
+      const key = `${p.from}>${p.to}@${p.at}`
+      seen.add(key)
+      const a = this.nodes[p.from]
+      const b = this.nodes[p.to]
+      if (a.x === undefined || b.x === undefined) continue
+      const age = now - p.at
+      const color = p.isBranch ? '#c4a7ff' : colorOf(p.from)
+      let fx = this.fx.trails.get(key)
+      if (!fx) {
+        const points = this.curve(a, b, 48)
+        const trail = kit.line(points)
+        trail.material.color.set(color)
+        const comet = kit.mesh(kit.sphere(), kit.glowMaterial('#ffffff'))
+        const glow = kit.mesh(kit.sphere(), kit.glowMaterial(color))
+        scene.add(trail, comet, glow)
+        fx = { trail, comet, glow, points }
+        this.fx.trails.set(key, fx)
+      }
+      fx.trail.material.opacity = age < COMET_MS ? 0.75 : Math.max(0.12, 0.45 * (1 - age / TRAIL_MS))
+      const isFlying = age < COMET_MS
+      fx.comet.visible = fx.glow.visible = isFlying
+      if (isFlying) {
+        const t = (age % 1500) / 1500
+        const at = fx.points[Math.min(fx.points.length - 1, Math.round(t * (fx.points.length - 1)))]
+        fx.comet.position.set(at.x, at.y, at.z)
+        fx.comet.scale.setScalar(2.2)
+        fx.comet.material.opacity = 1
+        fx.glow.position.set(at.x, at.y, at.z)
+        fx.glow.scale.setScalar(4.5)
+        fx.glow.material.opacity = 0.3
+      }
+    }
+    for (const [key, fx] of this.fx.trails) {
+      if (!seen.has(key)) {
+        scene.remove(fx.trail, fx.comet, fx.glow)
+        this.fx.trails.delete(key)
+      }
+    }
+
+    // Names float over the skills that fired, as on the globe.
+    const shown = new Set()
+    for (const [i] of live.glow) {
+      const g = glowOf(i)
+      const node = this.nodes[i]
+      if (g <= 0.12 || node.x === undefined) continue
+      shown.add(i)
+      let tag = this.fx.labels.get(i)
+      if (!tag) {
+        tag = document.createElement('div')
+        tag.style.cssText = 'position:absolute;transform:translate(-50%,-100%);font:600 12px ui-sans-serif,-apple-system,sans-serif;color:#fff;text-shadow:0 0 6px rgba(0,0,0,.9);white-space:nowrap'
+        tag.textContent = skills[i].name
+        this.labels.appendChild(tag)
+        this.fx.labels.set(i, tag)
+      }
+      const at = this.graph.graph2ScreenCoords(node.x, node.y + radiusOf(i) * 2.2, node.z)
+      tag.style.left = `${at.x}px`
+      tag.style.top = `${at.y}px`
+      tag.style.opacity = String(Math.min(1, g * 1.4))
+    }
+    for (const [i, tag] of this.fx.labels) {
+      if (!shown.has(i)) {
+        tag.remove()
+        this.fx.labels.delete(i)
+      }
+    }
+  },
+  refresh() {
+    const g = this.graph
+    g.nodeColor(g.nodeColor()).nodeVal(g.nodeVal()).linkColor(g.linkColor()).linkWidth(g.linkWidth()).linkDirectionalParticles(g.linkDirectionalParticles())
+  },
+  fly(i) { this.focus(i) },
+  /** A burst of particles along the link from `from` to `to`, when the two are linked. */
+  comet(from, to) {
+    const link = this.graph.graphData().links.find(l => (l.pair[0] === from && l.pair[1] === to) || (l.pair[0] === to && l.pair[1] === from))
+    if (link) for (let k = 0; k < 6; k++) setTimeout(() => this.graph.emitParticle(link), k * 90)
+  },
+  focus(i) {
+    if (!this.isSettled) return
+    const n = this.nodes[i]
+    const distance = 180
+    const ratio = 1 + distance / (Math.hypot(n.x || 1, n.y || 1, n.z || 1))
+    this.graph.cameraPosition({ x: n.x * ratio, y: n.y * ratio, z: n.z * ratio }, n, 1200)
+  },
+  focusRegion(r) { this.graph.zoomToFit(1000, 60, n => skills[n.i].region === r) },
+  pause() {
+    this.isActive = false
+    this.graph.pauseAnimation()
+  },
+  resume() {
+    this.isActive = true
+    this.graph.resumeAnimation()
+  },
+}
+
+// ---- 2D (Obsidian-like) ---------------------------------------------------
+views['2d'] = {
+  async init(el) {
+    await load(CDN['2d'])
+    const data = graphData(2)
+    let isFirstStop = true
+    const graph = ForceGraph()(el)
+      .backgroundColor('#04060c')
+      .graphData(data)
+      .nodeId('i')
+      .nodeRelSize(4)
+      .nodeVal(n => 1 + neighbours[n.i].size * 0.6)
+      .nodeCanvasObject((n, ctx, scale) => {
+        const i = n.i
+        const radius = 2.6 + Math.sqrt(neighbours[i].size) * 1.4
+        const related = isRelated(i) || state.matches.has(i)
+        ctx.beginPath()
+        ctx.arc(n.x, n.y, radius, 0, Math.PI * 2)
+        ctx.fillStyle = related ? colorOf(i) : alpha(colorOf(i), 0.15)
+        if (i === state.selected) { ctx.shadowColor = colorOf(i); ctx.shadowBlur = 18 }
+        ctx.fill()
+        ctx.shadowBlur = 0
+        if (i === state.selected) { ctx.lineWidth = 1.6 / scale; ctx.strokeStyle = '#fff'; ctx.stroke() }
+        const isNamed = scale > 1.6 || i === state.selected || i === state.hover || state.matches.has(i) || (state.selected >= 0 && neighbours[state.selected].has(i))
+        if (isNamed && related) {
+          ctx.font = `${(i === state.selected ? 13 : 11) / scale}px ui-sans-serif, -apple-system, sans-serif`
+          ctx.textAlign = 'center'
+          ctx.textBaseline = 'top'
+          ctx.fillStyle = i === state.selected || i === state.hover ? '#fff' : 'rgba(229,231,235,.85)'
+          ctx.fillText(skills[i].name, n.x, n.y + radius + 2 / scale)
+        }
+      })
+      .nodePointerAreaPaint((n, color, ctx) => {
+        ctx.fillStyle = color
+        ctx.beginPath()
+        ctx.arc(n.x, n.y, 4 + Math.sqrt(neighbours[n.i].size) * 1.4, 0, Math.PI * 2)
+        ctx.fill()
+      })
+      .linkColor(l => (isLitLink(l.pair) ? alpha(colorOf(l.pair[0]), 0.9) : state.hover >= 0 || state.selected >= 0 ? 'rgba(120,130,160,0.07)' : 'rgba(120,130,160,0.22)'))
+      .linkWidth(l => (isLitLink(l.pair) ? 1.6 : 0.6))
+      .onNodeClick(n => select(n.i, true))
+      .onNodeHover(n => {
+        state.hover = n ? n.i : -1
+        el.style.cursor = n ? 'pointer' : 'grab'
+        refresh()
+      })
+      .onRenderFramePre((ctx, scale) => {
+        if (scale > 2.2) return
+        const sums = regions.map(() => ({ x: 0, y: 0, n: 0 }))
+        for (const node of data.nodes) {
+          const s = sums[skills[node.i].region]
+          s.x += node.x; s.y += node.y; s.n++
+        }
+        ctx.textAlign = 'center'
+        ctx.textBaseline = 'middle'
+        regions.forEach((region, r) => {
+          const s = sums[r]
+          if (s.n < (scale > 1 ? 1 : 3)) return
+          ctx.font = `600 ${Math.min(22, 9 + Math.sqrt(s.n) * 1.6) / scale}px ui-sans-serif, -apple-system, sans-serif`
+          ctx.fillStyle = alpha(region.color, 0.26)
+          ctx.fillText(region.label, s.x / s.n, s.y / s.n)
+        })
+      })
+      .onRenderFramePost((ctx, scale) => drawLive2d(ctx, scale, data.nodes))
+      .autoPauseRedraw(false)
+      .cooldownTicks(300)
+      .onEngineStop(() => {
+        if (isFirstStop) {
+          isFirstStop = false
+          if (Date.now() - live.lastFly > 3000) graph.zoomToFit(700, 60)
+        }
+      })
+    graph.d3Force('charge').strength(-28)
+    graph.d3Force('cluster', clusterForce(n => regions[skills[n.i].region].centre2, 0.3))
+    graph.d3Force('link').strength(0.02)
+    this.graph = graph
+    this.nodes = data.nodes
+    this.resize = () => graph.width(el.clientWidth).height(el.clientHeight)
+  },
+  refresh() {
+    const g = this.graph
+    g.linkColor(g.linkColor()).linkWidth(g.linkWidth())
+  },
+  fly(i) {
+    const n = this.nodes[i]
+    this.graph.centerAt(n.x, n.y, 900)
+    this.graph.zoom(Math.max(this.graph.zoom(), 1.6), 900)
+  },
+  focus(i) {
+    const n = this.nodes[i]
+    this.graph.centerAt(n.x, n.y, 900)
+    this.graph.zoom(Math.max(this.graph.zoom(), 3), 900)
+  },
+  focusRegion(r) { this.graph.zoomToFit(900, 60, n => skills[n.i].region === r) },
+  pause() { this.graph.pauseAnimation() },
+  resume() { this.graph.resumeAnimation() },
+}
+
+// ---- Live: skills firing, and the paths between them ------------------------
+const GLOW_MS = 7000
+const COMET_MS = 7500
+const TRAIL_MS = 90000
+const live = {
+  seq: 0,
+  glow: new Map(), // skill index -> { at, isBranch }
+  heat: new Map(), // skill index -> loads this session
+  paths: [], // { from, to, at, isBranch }
+  last: new Map(), // `${turn}|${agent}` -> last skill index loaded there
+  agents: new Map(), // `${session}|${agent}` -> { parent, type, turn }
+  sessions: new Map(), // session id -> project folder name
+  only: '', // show one session, or '' for all
+  feed: [],
+  isFollowing: true,
+  lastUserMove: 0,
+  lastFly: 0,
+  isConnected: false,
+}
+const byId = new Map(skills.map((skill, i) => [skill.id.toLowerCase(), i]))
+const byName = new Map()
+skills.forEach((skill, i) => byName.set(skill.name.toLowerCase(), byName.has(skill.name.toLowerCase()) ? -1 : i))
+const findSkill = name => {
+  const key = String(name || '').toLowerCase().replace(/^\//, '')
+  return byId.get(key) ?? (byName.get(key.split(':').pop()) >= 0 ? byName.get(key.split(':').pop()) : -1)
+}
+
+const glowOf = i => {
+  const g = live.glow.get(i)
+  if (!g) return 0
+  const age = (Date.now() - g.at) / GLOW_MS
+  return age >= 1 ? 0 : 1 - age
+}
+const heatOf = i => live.heat.get(i) || 0
+const ends = p => (p.live ? [p.from, p.to] : p)
+const arcSpan = p => {
+  const a = skills[p.from], b = skills[p.to]
+  return Math.acos(Math.min(1, Math.sin(a.lat) * Math.sin(b.lat) + Math.cos(a.lat) * Math.cos(b.lat) * Math.cos(a.lon - b.lon)))
+}
+const mixHex = (a, b, t) => {
+  const x = parseInt(a.slice(1), 16), y = parseInt(b.slice(1), 16)
+  const ch = s => Math.round(((x >> s) & 255) + (((y >> s) & 255) - ((x >> s) & 255)) * t)
+  return `rgb(${ch(16)},${ch(8)},${ch(0)})`
+}
+function liveArcs() {
+  const now = Date.now()
+  return live.paths.flatMap(p => (now - p.at < COMET_MS ? [{ ...p, live: 'comet' }, { ...p, live: 'trail' }] : now - p.at < TRAIL_MS ? [{ ...p, live: 'trail' }] : []))
+}
+function liveRings() {
+  return [...live.glow.entries()].filter(([i]) => glowOf(i) > 0).map(([i, g]) => ({ i, isBranch: g.isBranch, strength: 0.4 + 0.6 * glowOf(i) }))
+}
+function liveLabels() {
+  return [...live.glow.keys()].filter(i => glowOf(i) > 0.15 && i !== state.selected).map(i => ({ isSkill: true, i }))
+}
+
+/** Draws glowing halos and travelling comets over the 2D graph. */
+function drawLive2d(ctx, scale, nodes) {
+  const now = Date.now()
+  for (const p of live.paths) {
+    const age = now - p.at
+    if (age > TRAIL_MS) continue
+    const a = nodes[p.from], b = nodes[p.to]
+    if (!a || !b || a.x === undefined) continue
+    const color = p.isBranch ? '#c4a7ff' : colorOf(p.from)
+    ctx.save()
+    ctx.strokeStyle = alpha(color.startsWith('#') ? color : '#c4a7ff', age < COMET_MS ? 0.55 : 0.28)
+    ctx.lineWidth = 1.6 / scale
+    if (p.isBranch) ctx.setLineDash([4 / scale, 3 / scale])
+    ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke()
+    if (age < COMET_MS) {
+      const t = (age % 1500) / 1500
+      const x = a.x + (b.x - a.x) * t, y = a.y + (b.y - a.y) * t
+      const glow = ctx.createRadialGradient(x, y, 0, x, y, 9 / scale)
+      glow.addColorStop(0, '#ffffff'); glow.addColorStop(0.35, alpha(color.startsWith('#') ? color : '#c4a7ff', 0.8)); glow.addColorStop(1, 'rgba(0,0,0,0)')
+      ctx.fillStyle = glow
+      ctx.beginPath(); ctx.arc(x, y, 9 / scale, 0, Math.PI * 2); ctx.fill()
+    }
+    ctx.restore()
+  }
+  for (const [i] of live.glow) {
+    const g = glowOf(i)
+    const n = nodes[i]
+    if (!g || !n || n.x === undefined) continue
+    const pulse = 1 + 0.35 * Math.sin(now / 160)
+    const r = (10 + 18 * g) * pulse / Math.max(0.6, scale)
+    const halo = ctx.createRadialGradient(n.x, n.y, 0, n.x, n.y, r)
+    halo.addColorStop(0, alpha(colorOf(i), 0.9 * g)); halo.addColorStop(1, 'rgba(0,0,0,0)')
+    ctx.fillStyle = halo
+    ctx.beginPath(); ctx.arc(n.x, n.y, r, 0, Math.PI * 2); ctx.fill()
+    ctx.font = `600 ${12 / scale}px ui-sans-serif, -apple-system, sans-serif`
+    ctx.textAlign = 'center'; ctx.textBaseline = 'bottom'
+    ctx.fillStyle = `rgba(255,255,255,${g})`
+    ctx.fillText(skills[i].name, n.x, n.y - r * 0.55)
+  }
+}
+
+/** Takes one event in; `isHistory` marks events from before the page opened (counted, not animated). */
+function ingest(event, isHistory) {
+  const session = event.session || 'local'
+  if (!live.sessions.has(session)) {
+    live.sessions.set(session, event.project || session)
+    renderSessions()
+  }
+  if (live.only && live.only !== session) return
+  if (event.kind === 'turn') {
+    if (!isHistory && live.feed.length && live.feed[0].kind !== 'turn') addFeed({ kind: 'turn', turn: event.turn })
+    return
+  }
+  if (event.kind === 'agent') {
+    live.agents.set(`${session}|${event.agent}`, { parent: event.parent || 'main', type: event.agentType || 'agent', turn: event.turn })
+    if (!isHistory) addFeed({ kind: 'agent', agent: event.agent, type: event.agentType, session })
+    return
+  }
+  if (event.kind !== 'skill') return
+  const i = findSkill(event.skill)
+  const agent = event.agent || 'main'
+  const track = `${session}|${event.turn}|${agent}`
+  let from = live.last.get(track)
+  let isBranch = false
+  if (from === undefined && agent !== 'main') {
+    const parent = live.agents.get(`${session}|${agent}`)
+    if (parent) {
+      from = live.last.get(`${session}|${parent.turn}|${parent.parent}`)
+      isBranch = true
+    }
+  }
+  if (i < 0) {
+    if (!isHistory) addFeed({ kind: 'skill', name: event.skill, i: -1, from, agent, session })
+    return
+  }
+  live.heat.set(i, heatOf(i) + 1)
+  live.last.set(track, i)
+  if (isHistory) return
+  const now = Date.now()
+  live.glow.set(i, { at: now, isBranch: agent !== 'main' })
+  if (from !== undefined && from !== i) {
+    live.paths.push({ from, to: i, at: now, isBranch })
+    const v = views[state.view]
+    if (v.ready && v.comet) v.comet(from, i)
+  }
+  addFeed({ kind: 'skill', name: skills[i].id, i, from, agent, session })
+  if (live.isFollowing && now - live.lastUserMove > 5000 && state.selected < 0) {
+    const v = views[state.view]
+    if (v.ready && v.fly) {
+      live.lastFly = now
+      v.fly(i)
+    }
+  }
+  refresh()
+}
+
+const SESSION_COLORS = ['#7dd3fc', '#fca5a5', '#86efac', '#fcd34d', '#c4b5fd', '#f9a8d4', '#5eead4', '#fdba74']
+function sessionColor(id) {
+  let hash = 0
+  for (const ch of id) hash = (hash * 31 + ch.charCodeAt(0)) >>> 0
+  return SESSION_COLORS[hash % SESSION_COLORS.length]
+}
+
+function renderSessions() {
+  const select = document.getElementById('live-session')
+  const current = live.only
+  select.innerHTML =
+    `<option value="">All sessions (${live.sessions.size})</option>` +
+    [...live.sessions].map(([id, project]) => `<option value="${escapeHtml(id)}">${escapeHtml(project)} · ${escapeHtml(id)}</option>`).join('')
+  select.value = current
+}
+
+function addFeed(entry) {
+  live.feed.unshift({ ...entry, at: new Date() })
+  live.feed = live.feed.slice(0, 60)
+  renderFeed(true)
+}
+
+function renderFeed(isNew) {
+  const time = d => d.toTimeString().slice(0, 8)
+  const sessionBadge = e => {
+    if (live.sessions.size < 2 || !e.session) return ''
+    const color = sessionColor(e.session)
+    return `<span class="session" style="background:${color}" title="session ${escapeHtml(e.session)}">${escapeHtml(live.sessions.get(e.session) || e.session)}</span>`
+  }
+  const agentBadge = e => {
+    if (!e.agent || e.agent === 'main') return ''
+    const info = live.agents.get(`${e.session}|${e.agent}`)
+    return `<span class="agent">${escapeHtml(info?.type || 'subagent')}</span>`
+  }
+  document.getElementById('feed').innerHTML = live.feed
+    .map((e, k) => {
+      const flash = isNew && k === 0 ? ' new' : ''
+      if (e.kind === 'turn') return `<div class="ev turn${flash}">new turn</div>`
+      if (e.kind === 'agent') return `<div class="ev${flash}"><span class="t">${time(e.at)}</span>${sessionBadge(e)}<span class="agent">${escapeHtml(e.type || 'subagent')}</span><span class="from">subagent started</span></div>`
+      const color = e.i >= 0 ? colorOf(e.i) : '#6b7280'
+      const from = e.from !== undefined && e.from >= 0 ? `<span class="from">← ${escapeHtml(skills[e.from].name)}</span>` : ''
+      return `<div class="ev${flash}" ${e.i >= 0 ? `data-skill="${e.i}"` : ''}><span class="t">${time(e.at)}</span>${sessionBadge(e)}${agentBadge(e)}<span class="dot" style="color:${color};background:${color}"></span><span class="name">${escapeHtml(e.name)}</span>${from}</div>`
+    })
+    .join('') || '<div class="ev turn">Skills light up here as your session loads them.</div>'
+  const used = live.heat.size
+  document.getElementById('live-meta').textContent = live.isConnected ? `${used} skill${used === 1 ? '' : 's'} used` : 'not connected · Simulate works'
+  document.getElementById('live').classList.toggle('on', live.isConnected)
+}
+
+// Live events arrive over a stream from the Skillverse server (server/skillverse-server.mjs):
+// the last few as history (counted, not animated), then each one as it happens.
+function connect() {
+  if (!window.EventSource) return
+  const stream = new EventSource('events/stream')
+  stream.onopen = () => {
+    live.isConnected = true
+    renderFeed(false)
+  }
+  stream.onmessage = message => {
+    try {
+      const event = JSON.parse(message.data)
+      ingest(event, Boolean(event.history))
+      if (event.history) renderFeed(false)
+    } catch {
+      // A malformed event is skipped.
+    }
+  }
+  stream.onerror = () => {
+    // EventSource reconnects by itself; say so meanwhile.
+    live.isConnected = false
+    renderFeed(false)
+  }
+}
+connect()
+
+// Keep glows fading and comets moving between events.
+setInterval(() => {
+  const now = Date.now()
+  const isBusy = [...live.glow.values()].some(g => now - g.at < GLOW_MS + 500) || live.paths.some(p => now - p.at < COMET_MS + 500)
+  if (isBusy) refresh()
+  live.paths = live.paths.filter(p => now - p.at < TRAIL_MS)
+}, 250)
+
+/** A made-up chain of skills along real links, with a subagent branch, to show the effect. */
+function simulate() {
+  const linked = skills.map((_, i) => i).filter(i => neighbours[i].size >= 2)
+  if (!linked.length) return
+  let current = linked[Math.floor(Math.random() * linked.length)]
+  const turn = 1e6 + Math.floor(Math.random() * 1e6)
+  const steps = [current]
+  for (let k = 0; k < 4; k++) {
+    const next = [...neighbours[current]].filter(n => !steps.includes(n))
+    if (!next.length) break
+    current = next[Math.floor(Math.random() * next.length)]
+    steps.push(current)
+  }
+  let delay = 0
+  ingest({ kind: 'turn', turn, session: 'simulate', project: 'simulate' })
+  steps.forEach((i, k) => {
+    delay += 1100
+    setTimeout(() => ingest({ kind: 'skill', skill: skills[i].id, agent: 'main', turn, session: 'simulate', project: 'simulate' }), delay)
+    if (k === 1) {
+      const branch = [...neighbours[i]].find(n => !steps.includes(n))
+      if (branch !== undefined) {
+        setTimeout(() => ingest({ kind: 'agent', agent: 'sim-agent', parent: 'main', agentType: 'Explore', turn, session: 'simulate', project: 'simulate' }), delay + 300)
+        setTimeout(() => ingest({ kind: 'skill', skill: skills[branch].id, agent: 'sim-agent', turn, session: 'simulate', project: 'simulate' }), delay + 700)
+      }
+    }
+  })
+}
+
+document.getElementById('live-demo').addEventListener('click', simulate)
+document.getElementById('live-session').addEventListener('change', event => {
+  live.only = event.currentTarget.value
+  live.paths = []
+  live.feed = []
+  live.glow = new Map()
+  renderFeed(false)
+  refresh()
+})
+document.getElementById('live-follow').addEventListener('click', event => {
+  live.isFollowing = !live.isFollowing
+  event.currentTarget.setAttribute('aria-pressed', String(live.isFollowing))
+})
+document.getElementById('live-clear').addEventListener('click', () => {
+  live.paths = []
+  live.feed = []
+  live.glow = new Map()
+  renderFeed(false)
+  refresh()
+})
+document.getElementById('stage').addEventListener('pointerdown', () => (live.lastUserMove = Date.now()))
+document.getElementById('stage').addEventListener('wheel', () => (live.lastUserMove = Date.now()), { passive: true })
+
+// ---- Shell ------------------------------------------------------------------
+const stage = document.getElementById('stage')
+const loading = document.getElementById('loading')
+
+async function show(view) {
+  state.view = view
+  document.querySelectorAll('.tabs button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.view === view)))
+  document.getElementById('hint').textContent =
+    view === 'globe' ? 'drag to rotate · scroll to zoom · click a skill' : view === '3d' ? 'drag to orbit · scroll to zoom · click a skill' : 'drag to pan · scroll to zoom · click a skill'
+  for (const [name, v] of Object.entries(views)) {
+    const el = document.getElementById('view-' + name)
+    el.classList.toggle('active', name === view)
+    if (name !== view && v.ready) v.pause()
+  }
+  const v = views[view]
+  const el = document.getElementById('view-' + view)
+  if (!v.ready) {
+    loading.classList.add('on')
+    try {
+      await v.init(el)
+      v.ready = true
+    } catch (error) {
+      loading.textContent = `${String(error.message || error)}. This view needs an internet connection to load its library.`
+      return
+    }
+    loading.classList.remove('on')
+  }
+  v.resume()
+  v.resize()
+  v.refresh()
+  if (state.selected >= 0) v.focus(state.selected)
+}
+
+function refresh() {
+  const v = views[state.view]
+  if (v.ready) v.refresh()
+}
+
+function select(i, isFocused, isBack) {
+  if (!isBack && state.selected >= 0 && state.selected !== i) state.history.push(state.selected)
+  state.selected = i
+  if (views.globe.ready) views.globe.spin(i < 0)
+  renderPanel()
+  refresh()
+  const v = views[state.view]
+  if (isFocused && v.ready && i >= 0) v.focus(i)
+}
+
+function chip(i) {
+  return `<button class="chip" data-skill="${i}"><span class="dot" style="color:${colorOf(i)};background:${colorOf(i)}"></span><span>${escapeHtml(skills[i].id)}</span></button>`
+}
+
+function renderPanel() {
+  const head = document.getElementById('panel-head')
+  const body = document.getElementById('panel-body')
+  const i = state.selected
+  if (i < 0) {
+    head.hidden = true
+    body.innerHTML = `<div class="empty">Pick a skill on the ${state.view === 'globe' ? 'globe' : 'graph'}, search above, or choose a region in the legend.<br><br>Links come from skills naming each other: a full <code>plugin:name</code>, a <code>/name</code>, or a hyphenated name.</div>`
+    return
+  }
+  const skill = skills[i]
+  const region = regions[skill.region]
+  head.hidden = false
+  head.innerHTML = `
+    <h2>${escapeHtml(skill.name)}</h2>
+    <button class="chip" data-region="${skill.region}"><span class="dot" style="color:${region.color};background:${region.color}"></span><span>${escapeHtml(region.label)}</span></button>
+    <div class="meta">/${escapeHtml(skill.id)}${skill.path ? ' · ' + escapeHtml(skill.path) : ''}</div>
+    ${skill.description ? `<p class="desc">${escapeHtml(skill.description)}</p>` : ''}
+    <div class="actions">
+      <button class="primary" id="copy">Copy /${escapeHtml(skill.id)}</button>
+      ${state.history.length ? '<button id="back">← Back</button>' : ''}
+      <button id="clear">Clear</button>
+    </div>`
+  const out = skill.links
+  const inc = incoming[i]
+  let html = ''
+  if (out.length) html += `<h4>Links to (${out.length})</h4>` + out.map(chip).join('')
+  if (inc.length) html += `<h4>Linked from (${inc.length})</h4>` + inc.map(chip).join('')
+  html += '<h4>Content</h4><div class="md" id="md"></div>'
+  body.innerHTML = html
+  body.scrollTop = 0
+  const md = document.getElementById('md')
+  if (!skill.body.trim()) {
+    md.innerHTML = '<p class="empty" style="padding:0">No SKILL.md was found for this skill.</p>'
+  } else if (window.marked && window.DOMPurify) {
+    md.innerHTML = DOMPurify.sanitize(marked.parse(skill.body))
+  } else {
+    md.innerHTML = `<pre style="white-space:pre-wrap">${escapeHtml(skill.body)}</pre>`
+  }
+}
+
+document.addEventListener('click', event => {
+  const target = event.target.closest('[data-skill],[data-region],#copy,#back,#clear')
+  if (!target) return
+  if (target.dataset.skill) select(Number(target.dataset.skill), true)
+  else if (target.dataset.region) focusRegion(Number(target.dataset.region))
+  else if (target.id === 'copy') {
+    navigator.clipboard?.writeText('/' + skills[state.selected].id + ' ')
+    target.textContent = 'Copied'
+  } else if (target.id === 'back') {
+    const previous = state.history.pop()
+    if (previous !== undefined) select(previous, true, true)
+  } else if (target.id === 'clear') {
+    state.history = []
+    select(-1, false)
+  }
+})
+
+function focusRegion(r) {
+  const v = views[state.view]
+  if (v.ready) v.focusRegion(r)
+}
+
+document.querySelectorAll('.tabs button').forEach(button => button.addEventListener('click', () => show(button.dataset.view)))
+
+const search = document.getElementById('search')
+search.addEventListener('input', () => {
+  const q = search.value.trim().toLowerCase()
+  state.matches = new Set(q ? skills.filter(s => s.id.toLowerCase().includes(q) || s.description.toLowerCase().includes(q)).map(s => s.i) : [])
+  refresh()
+})
+search.addEventListener('keydown', event => {
+  if (event.key === 'Enter' && state.matches.size) select([...state.matches][0], true)
+  if (event.key === 'Escape') { search.value = ''; state.matches = new Set(); refresh() }
+})
+
+window.addEventListener('resize', () => {
+  const v = views[state.view]
+  if (v.ready) v.resize()
+})
+
+document.getElementById('stats').textContent = `${skills.length} skills · ${regions.length} regions · ${pairs.length} links`
+document.getElementById('legend-rows').innerHTML = regions
+  .map((region, r) => ({ region, r }))
+  .sort((a, b) => a.region.label.localeCompare(b.region.label))
+  .map(({ region, r }) => `<div class="region-row" data-region="${r}"><span class="dot" style="color:${region.color};background:${region.color}"></span><span>${escapeHtml(region.label)}</span><span class="count">${region.count}</span></div>`)
+  .join('')
+
+Promise.all([load(CDN.marked), load(CDN.purify)]).catch(() => {}).finally(renderPanel)
+const wanted = new URLSearchParams(location.search).get('skill')
+show('globe').then(() => {
+  const i = wanted ? skills.findIndex(s => s.id === wanted) : -1
+  if (i >= 0) select(i, true)
+})
+</script>
+</body>
+</html>

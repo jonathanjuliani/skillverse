@@ -1,0 +1,57 @@
+{
+  "name": "@jonathanjuliani/skillverse",
+  "version": "0.1.0",
+  "description": "Skillverse in your terminal: an animated globe, graph and tree of the skills your Claude Code session has.",
+  "type": "module",
+  "packageManager": "pnpm@9.12.0",
+  "bin": {
+    "skillverse": "tui/skillverse.mjs"
+  },
+  "files": [
+    "tui/",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=22.18"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "prepack": "pnpm run build",
+    "version": "node scripts/sync-version.mjs && git add .claude-plugin/plugin.json .claude-plugin/marketplace.json CHANGELOG.md",
+    "check-version": "node scripts/sync-version.mjs --check",
+    "lint": "biome check .",
+    "format": "biome check --write .",
+    "typecheck": "tsc -p . && tsc -p tsconfig.test.json",
+    "test": "vitest run",
+    "test:plugin": "claude plugin test .",
+    "validate": "claude plugin validate .claude-plugin/plugin.json && claude plugin validate .",
+    "snapshot": "node tui/skillverse.mjs --scan --snapshot 120x32 --frames 20 --plain"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.5.15",
+    "@types/node": "22.20.5",
+    "typescript": "^5.9.3",
+    "vitest": "5.0.3"
+  },
+  "author": "Jonathan Juliani (https://github.com/jonathanjuliani)",
+  "homepage": "https://github.com/jonathanjuliani/skillverse",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jonathanjuliani/skillverse.git"
+  },
+  "bugs": "https://github.com/jonathanjuliani/skillverse/issues",
+  "license": "MIT",
+  "keywords": [
+    "claude-code",
+    "claude",
+    "skills",
+    "plugins",
+    "tui",
+    "terminal",
+    "visualization"
+  ],
+  "publishConfig": {
+    "access": "public"
+  }
+}

@@ -1,0 +1,62 @@
+name: release
+
+# Push a version tag (pnpm version does it: see README, Releasing) to publish
+# the npm package and the GitHub Release. Marketplace users get the new
+# version from the tagged commit on main.
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write # the GitHub Release
+  id-token: write # npm provenance
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          registry-url: https://registry.npmjs.org
+          cache: pnpm
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: The tag, the three versions and the changelog agree
+        run: node scripts/sync-version.mjs --check "$GITHUB_REF_NAME"
+
+      - name: Install Claude Code
+        run: npm install -g @anthropic-ai/claude-code
+
+      - name: Lint, test, validate
+        run: |
+          pnpm run lint
+          pnpm test
+          pnpm run validate
+          pnpm run test:plugin
+
+      # npm, not pnpm, publishes: npm is what signs the provenance statement.
+      # prepack builds tui/lib with pnpm first.
+      - name: Publish the npm package
+        run: npm publish --provenance --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: GitHub Release from the changelog
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          awk -v v="$version" '
+            $0 ~ "^## \\[" v "\\]" { found = 1; next }
+            found && /^## \[/ { exit }
+            found && /^\[[^]]+\]: / { exit }
+            found { print }
+          ' CHANGELOG.md > notes.md
+          gh release create "$GITHUB_REF_NAME" --title "Skillverse $version" --notes-file notes.md --verify-tag
+        env:
+          GH_TOKEN: ${{ github.token }}

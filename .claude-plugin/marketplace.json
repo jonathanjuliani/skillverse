@@ -1,0 +1,22 @@
+{
+  "name": "skillverse",
+  "owner": {
+    "name": "Jonathan Juliani",
+    "url": "https://github.com/jonathanjuliani"
+  },
+  "metadata": {
+    "description": "Skillverse: see, navigate and measure the skills your Claude Code session has."
+  },
+  "plugins": [
+    {
+      "name": "skillverse",
+      "source": "./",
+      "description": "A tree of every skill grouped by plugin, links between skills, context and token cost, usage counts, and an interactive 3D web view.",
+      "version": "0.1.0",
+      "author": { "name": "Jonathan Juliani" },
+      "homepage": "https://github.com/jonathanjuliani/skillverse",
+      "license": "MIT",
+      "keywords": ["skills", "context", "visualization"]
+    }
+  ]
+}
