@@ -1,6 +1,6 @@
 name: release
 
-# Push a version tag (pnpm version does it: see README, Releasing) to publish
+# Push a version tag (pnpm version does it: see docs/develop.md, Releasing) to publish
 # the npm package and the GitHub Release. Marketplace users get the new
 # version from the tagged commit on main.
 on:

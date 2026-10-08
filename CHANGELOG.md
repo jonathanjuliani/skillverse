@@ -2,7 +2,7 @@
 
 All notable changes to Skillverse are listed here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-Add each change under **Unreleased** as you make it; `pnpm version` moves them under the new version when you release (see [Releasing](README.md#releasing)).
+Add each change under **Unreleased** as you make it; `pnpm version` moves them under the new version when you release (see [Releasing](docs/develop.md#releasing)).
 
 ## [Unreleased]
 
@@ -18,6 +18,7 @@ Add each change under **Unreleased** as you make it; `pnpm version` moves them u
 
 ### Changed
 
+- The README is the install action. Requirements, use, how it works, and developing live in `docs/`.
 - The web app shows the machine, not a project: project skills are no longer scanned or kept from a session's list, and `skillverse run` no longer takes `--project`.
 - The Agents card lists an agent's groups under its categories.
 
