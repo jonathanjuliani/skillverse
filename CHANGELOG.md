@@ -24,6 +24,7 @@ Add each change under **Unreleased** as you make it; `pnpm version` moves them u
 
 ### Fixed
 
+- Skills now reach the web view's Live card however they run: typed as `/name` or called through the Skill tool. Claude Code does not fire its `skill.prompt` hook for every skill, so the plugin also records a skill from the Skill tool's input and from a prompt that starts with a skill's `/name`, once each.
 - `pnpm version` formats the plugin files it writes, so a release passes lint.
 
 ## [0.2.0] - 2026-10-08

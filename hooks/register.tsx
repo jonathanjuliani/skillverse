@@ -310,6 +310,10 @@ let liveTurn = 0
 let liveSends: Promise<void> = Promise.resolve()
 /** The loop whose Skill tool call is running, so its skill.prompt can be credited to it. */
 let skillCaller: string | undefined
+/** Whether skill.prompt fired during the running Skill tool call; when it did not, the call itself records the skill. */
+let isSkillSeen = false
+/** A skill typed as `/name` in the last prompt, recorded from the prompt; its skill.prompt, if it fires, is not counted again. */
+let typedSkill: string | undefined
 
 /**
  * Sends an event to the Skillverse server, which pushes it to every open web view.
@@ -680,6 +684,40 @@ const bar = (part: number, whole: number, width = 24) => {
 }
 
 /** The session id's skill name as the index knows it: `plugin:name`, or a unique bare name. */
+/** Whether two names are the same skill (`docs:write`, `/write`, `write`). */
+function sameSkill(a: string, b: string): boolean {
+  const clean = (name: string) => name.replace(/^\//, '').trim()
+  return clean(a) === clean(b) || (skillIdOf(a) !== undefined && skillIdOf(a) === skillIdOf(b))
+}
+
+/** The `/name` a prompt starts with, a skill or not. */
+function typedNameOf(text: string): string | undefined {
+  return /^\s*\/([A-Za-z0-9_.:-]+)/.exec(text)?.[1]
+}
+
+/**
+ * Records a typed `/name` once this session's skill list is known (on the
+ * first prompt it may still be building), and only when it names a skill:
+ * built-in commands such as `/clear` are not skills.
+ */
+async function recordTyped($: EngineInterface, name: string): Promise<void> {
+  if (!index) {
+    startIndexing($)
+    await indexing
+  }
+  if (skillIdOf(name)) await skillUsed($, name, 'main')
+}
+
+/** One use of a skill: a live event for the web view, and one more in the pane's "Skills used". */
+async function skillUsed($: EngineInterface, name: string, agent: string): Promise<void> {
+  record($, { kind: 'skill', skill: name, agent })
+  const used = skillIdOf(name)
+  if (used && isUsesLoaded) {
+    uses.set(used, (uses.get(used) ?? 0) + 1)
+    await update($, statsAt, n => n + 1)
+  }
+}
+
 function skillIdOf(name: string): string | undefined {
   const clean = name.replace(/^\//, '').trim()
   if (!index) return undefined
@@ -790,6 +828,9 @@ export const register: Register = on => {
   on('prompt.submit', async ($, e, next) => {
     liveTurn++
     record($, { kind: 'turn', agent: 'main' })
+    // A typed `/name` is recorded here: skill.prompt does not fire for every skill on every surface.
+    typedSkill = typedNameOf(e.text)
+    if (typedSkill) void recordTyped($, typedSkill)
 
     return next(e)
   })
@@ -802,21 +843,24 @@ export const register: Register = on => {
     }
     const previous = skillCaller
     skillCaller = agent
+    isSkillSeen = false
     try {
       return await next(e)
     } finally {
       skillCaller = previous
+      // skill.prompt did not fire for this call: the call's own input names the skill.
+      const name = (e as { skill?: unknown }).skill
+      if (!isSkillSeen && typeof name === 'string' && name) await skillUsed($, name, agent)
+      isSkillSeen = false
     }
   })
 
   on('skill.prompt', async ($, e, next) => {
-    record($, { kind: 'skill', skill: e.skill, agent: skillCaller ?? 'main' })
-    // Count each skill for the pane's "Skills used" (typed, through the Skill tool, or preloaded).
-    const used = skillIdOf(e.skill)
-    if (used && isUsesLoaded) {
-      uses.set(used, (uses.get(used) ?? 0) + 1)
-      await update($, statsAt, n => n + 1)
-    }
+    if (skillCaller !== undefined) isSkillSeen = true
+    // A typed skill was already recorded from its prompt.
+    const isTyped = skillCaller === undefined && typedSkill !== undefined && sameSkill(typedSkill, e.skill)
+    if (isTyped) typedSkill = undefined
+    else await skillUsed($, e.skill, skillCaller ?? 'main')
 
     return next(e)
   })
