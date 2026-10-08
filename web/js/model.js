@@ -6,18 +6,49 @@ const DATA = window.SKILLVERSE || { skills: [], regions: [] }
 export const skills = DATA.skills
 export const regions = DATA.regions
 
-/** The agents, one globe each. Data from before agents existed is one agent. */
+/** The agents, one planet each. Data from before agents existed is one agent. */
 export const agents = DATA.agents?.length ? DATA.agents : [{ id: 'claude', label: 'Skills', count: skills.length, from: 'scan' }]
 
 for (const [i, skill] of skills.entries()) {
   skill.i = i
   skill.agent ??= 0
   skill.twins ??= []
+  skill.category ??= 'user'
 }
 for (const [r, region] of regions.entries()) {
   region.r = r
   region.agent ??= 0
+  region.category ??= 'user'
 }
+for (const [a, agent] of agents.entries()) {
+  agent.summary ??= { skills: agent.count, connectors: 0, plugins: 0, byCategory: {} }
+  agent.i = a
+}
+
+/** The top-level groups of a planet, in the order they are listed, and their names. */
+export const CATEGORIES = [
+  ['plugins', 'Plugins'],
+  ['user', 'Your skills'],
+  ['builtin', 'Built-in'],
+  ['mcp', 'Connectors (MCP)'],
+  ['org', 'Organization'],
+  ['project', 'Project'],
+]
+export const categoryLabel = category => CATEGORIES.find(([id]) => id === category)?.[1] ?? category
+
+/** The region names that are just a category's word (hooks/skills.ts REGION_PREFIX). */
+const BARE_REGIONS = new Set(['Plugin', 'User', 'Built-in', 'MCP', 'Organization', 'Project'])
+export const isBareRegion = region => BARE_REGIONS.has(region.label)
+
+/** A region's name under its category: without the category's word ("User · docs" is "docs"); a bare one is "Other", or "All" when alone. */
+export function regionName(region, isAlone = false) {
+  if (isBareRegion(region)) return isAlone ? 'All' : 'Other'
+  const at = region.label.indexOf(' · ')
+  return at >= 0 ? region.label.slice(at + 3) : region.label
+}
+
+/** A connector (an MCP server or app) rather than a skill. */
+export const isConnector = i => skills[i].kind === 'mcp'
 
 /** Each skill's neighbours, either direction, and each link once as [a, b]. */
 export const neighbours = skills.map(() => new Set())
@@ -47,6 +78,26 @@ export const agentOf = i => skills[i].agent
 export const skillsOfAgent = agent => skills.filter(skill => skill.agent === agent)
 export const regionsOfAgent = agent => regions.filter(region => region.agent === agent)
 
+/**
+ * An agent's categories, each with its regions (biggest first), how many it
+ * holds, and where its middle is on the planet (radians), for its label.
+ */
+export function categoriesOfAgent(agent) {
+  const own = regionsOfAgent(agent)
+  return CATEGORIES.flatMap(([id, label]) => {
+    const list = own.filter(region => region.category === id).sort((x, y) => y.count - x.count)
+    if (list.length === 0) return []
+    let [x, y, z] = [0, 0, 0]
+    for (const region of list) {
+      x += Math.cos(region.lat) * Math.cos(region.lon) * region.count
+      y += Math.cos(region.lat) * Math.sin(region.lon) * region.count
+      z += Math.sin(region.lat) * region.count
+    }
+    const count = list.reduce((sum, region) => sum + region.count, 0)
+    return [{ id, label, regions: list, count, lat: Math.atan2(z, Math.hypot(x, y)), lon: Math.atan2(y, x) }]
+  })
+}
+
 /** The agent whose sessions send live events: Claude Code's, when it is shown. */
 export const LIVE_AGENT = Math.max(
   0,
@@ -72,7 +123,8 @@ export function findSkill(name) {
   return byId.get(key) ?? (byName.get(short) >= 0 ? byName.get(short) : -1)
 }
 
-export const summary = `${skills.length} skills · ${agents.length > 1 ? `${agents.length} agents · ` : ''}${pairs.length} links`
+const connectorCount = skills.filter(skill => skill.kind === 'mcp').length
+export const summary = `${skills.length - connectorCount} skills · ${connectorCount ? `${connectorCount} connectors · ` : ''}${agents.length > 1 ? `${agents.length} agents · ` : ''}${pairs.length} links`
 
 // ---- Costs ------------------------------------------------------------------
 
@@ -88,6 +140,8 @@ export function costOf(i) {
   const skill = skills[i]
   const stats = agents[skill.agent]?.stats
   const measured = stats?.listing?.perSkill?.[skill.id]
+  // A connector's tools are listed by the agent itself; their cost is not in any file.
+  if (skill.kind === 'mcp') return { listing: 0, isMeasured: false, body: 0, uses: 0 }
   return {
     listing: measured ?? estimate(`- ${skill.name}: ${skill.description}`),
     isMeasured: measured !== undefined,
@@ -99,7 +153,7 @@ export function costOf(i) {
 /** What an agent's skills cost: listing them all (measured or estimated), and the new empty session where measured. */
 export function agentCost(a) {
   const stats = agents[a]?.stats
-  const own = skillsOfAgent(a)
+  const own = skillsOfAgent(a).filter(skill => skill.kind !== 'mcp')
   return {
     listing: stats?.listing?.tokens ?? own.reduce((sum, skill) => sum + costOf(skill.i).listing, 0),
     isMeasured: Boolean(stats?.listing),

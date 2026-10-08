@@ -1,10 +1,10 @@
 #!/usr/bin/env node
 // Skillverse server: serves the web view and relays live events to it.
 //
-//   node server/skillverse-server.mjs [--port 4317] [--project <folder>] [--dev] [--keep 50] [--log events.ndjson]
+//   node server/skillverse-server.mjs [--port 4317] [--dev] [--keep 50] [--log events.ndjson]
 //
 // The web app: the page from web/, the skills from a scan of every agent on
-// this machine (and of --project's skill folders), rebuilt on POST /refresh.
+// this machine, rebuilt on POST /refresh.
 // --dev reloads open pages when a file under web/ changes. `skillverse run`
 // starts it; the Claude Code plugin only finds it and feeds it.
 //
@@ -33,7 +33,6 @@ const arg = (name, fallback) => {
 const HERE = path.dirname(fileURLToPath(import.meta.url))
 const VERSION = JSON.parse(fs.readFileSync(path.join(HERE, '..', 'package.json'), 'utf8')).version
 const DIR = path.join(HERE, '..', 'web')
-const PROJECT = path.resolve(arg('--project', process.cwd()))
 const IS_DEV = process.argv.includes('--dev')
 const PORT = Number(arg('--port', 4317))
 const KEEP = Number(arg('--keep', 50))
@@ -78,19 +77,35 @@ function publish(event) {
   if (LOG) fs.appendFile(LOG, `${JSON.stringify(event)}\n`, () => {})
 }
 
+/** What sessions sent, per agent: their own skill list and stats (POST /skills). */
+const sessions = new Map()
+
 /**
- * The web app's skills as the page loads them: every agent scanned on first
- * ask and again on POST /refresh, where a session's own list (POST /skills)
- * stays in place of its agent's scan.
+ * The web app's skills as the page loads them: every installed agent scanned
+ * on first ask and again on POST /refresh; an agent a session sent its own
+ * list for shows that list, with the connectors the scan found.
  */
 async function skillsScript(isFresh = false) {
   const scan = await import('../cli/scan.mjs')
   if (!parts || isFresh) {
-    const sent = new Map((parts ?? []).filter(part => part.from === 'session').map(part => [part.id, part]))
-    parts = scan.scanParts(PROJECT).map(part => sent.get(part.id) ?? part)
+    parts = scan.scanParts()
     data = undefined
   }
-  data ??= (await import('../cli/shared.mjs').then(shared => shared.load('web'))).combineAgents(parts, new Date().toISOString())
+  if (!data) {
+    const shown = parts.map(part => {
+      const sent = sessions.get(part.id)
+      if (!sent) return part
+      const scanned = scan.skillsOf(part.id)
+      return {
+        id: part.id,
+        label: part.label,
+        from: 'session',
+        data: scan.mergeSession(sent.data, scanned),
+        ...(sent.stats ? { stats: sent.stats } : {}),
+      }
+    })
+    data = (await import('../cli/shared.mjs').then(shared => shared.load('web'))).combineAgents(shown, new Date().toISOString())
+  }
   return `window.SKILLVERSE = ${JSON.stringify(data)}\n`
 }
 
@@ -109,10 +124,12 @@ async function takeSkills(body) {
   const { AGENTS } = await import('../cli/scan.mjs')
   const known = AGENTS.find(item => item.id === agent)
   if (!known) throw new Error(`unknown agent: ${agent}`)
-  const part = { id: agent, label: known.label, from: 'session', data: sent, ...(isStats(stats) ? { stats } : {}) }
-  parts = [...parts.filter(item => item.id !== agent), part].sort(
-    (a, b) => AGENTS.findIndex(item => item.id === a.id) - AGENTS.findIndex(item => item.id === b.id),
-  )
+  sessions.set(agent, { data: sent, ...(isStats(stats) ? { stats } : {}) })
+  if (!parts.some(part => part.id === agent)) {
+    parts = [...parts, { id: agent, label: known.label, from: 'scan', data: { skills: [], regions: [] } }].sort(
+      (a, b) => AGENTS.findIndex(item => item.id === a.id) - AGENTS.findIndex(item => item.id === b.id),
+    )
+  }
   data = undefined
   return sent.skills.length
 }

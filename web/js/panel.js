@@ -1,8 +1,9 @@
 // The reader: the selected skill's name, group, agent, description, links
-// both ways, the same skill installed for other agents, and its SKILL.md.
+// both ways, the same skill installed for other agents, and its SKILL.md. A
+// connector (an MCP server) shows its transport and the agents that also have it.
 
 import { escapeHtml, formatTokens } from './lib.js'
-import { agents, colorOf, costOf, incoming, regions, skills } from './model.js'
+import { agents, categoryLabel, colorOf, costOf, incoming, isConnector, regions, skills } from './model.js'
 import { state } from './state.js'
 
 const chip = i =>
@@ -40,6 +41,7 @@ export function renderPanel() {
   const skill = skills[i]
   const region = regions[skill.region]
   const agent = agents[skill.agent]
+  const isMcp = isConnector(i)
   head.innerHTML = `
     <div class="reader-title">
       <h2>${escapeHtml(skill.name)}</h2>
@@ -47,16 +49,23 @@ export function renderPanel() {
     </div>
     <div class="chips">
       ${agents.length > 1 ? `<span class="tag">${escapeHtml(agent?.label ?? '')}</span>` : ''}
+      <span class="tag">${escapeHtml(categoryLabel(skill.category))}</span>
       <button class="chip" data-region="${skill.region}"><span class="dot" style="background:${region.color}"></span><span>${escapeHtml(region.label)}</span></button>
     </div>
     ${skill.description ? `<p class="desc">${escapeHtml(skill.description)}</p>` : ''}
-    ${costs(i)}
+    ${isMcp ? '' : costs(i)}
     <div class="actions">
-      <button class="primary" id="copy">Copy /${escapeHtml(skill.id.split('/').pop())}</button>
+      ${isMcp ? '' : `<button class="primary" id="copy">Copy /${escapeHtml(skill.id.split('/').pop())}</button>`}
       ${state.history.length ? '<button id="back">← Back</button>' : ''}
     </div>
     ${skill.path ? `<div class="path" title="${escapeHtml(skill.path)}">${escapeHtml(skill.path)}</div>` : ''}`
 
+  if (isMcp) {
+    body.innerHTML = `${section('Also installed for', skill.twins, twinChip)}
+      <p class="empty">A connector: its tools are listed by ${escapeHtml(agent?.label ?? 'the agent')} when it runs, so what they cost in context is not in any file. Skillverse reads only its name and how it is reached; commands, headers and keys are never read into the page.</p>`
+    body.scrollTop = 0
+    return
+  }
   body.innerHTML = `${section('Links to', skill.links, chip)}${section('Linked from', incoming[i], chip)}${section('Also installed for', skill.twins, twinChip)}
     <h4>SKILL.md</h4><div class="md" id="md"></div>`
   body.scrollTop = 0

@@ -30,9 +30,11 @@ const shift2d = (() => {
     box.top = Math.min(box.top, item.y)
     box.bottom = Math.max(box.bottom, item.y)
   }
+  // An agent with nothing found has an empty box: a point at the origin.
+  for (const box of boxes) if (box.left > box.right) Object.assign(box, { left: 0, right: 0, top: 0, bottom: 0 })
   const cols = Math.ceil(Math.sqrt(agents.length))
-  const width = Math.max(...boxes.map(box => box.right - box.left)) + GAP_2D
-  const height = Math.max(...boxes.map(box => box.bottom - box.top)) + GAP_2D
+  const width = Math.max(0, ...boxes.map(box => box.right - box.left)) + GAP_2D
+  const height = Math.max(0, ...boxes.map(box => box.bottom - box.top)) + GAP_2D
   return boxes.map((box, a) => ({ x: (a % cols) * width - box.left, y: Math.floor(a / cols) * height - box.top }))
 })()
 

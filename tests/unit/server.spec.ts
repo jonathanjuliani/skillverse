@@ -27,7 +27,7 @@ function request(pathname: string, init: { method?: string; headers?: Record<str
 beforeAll(async () => {
   // An empty home: the scan finds no skills, which is all the security checks need.
   dir = fs.mkdtempSync(path.join(os.tmpdir(), 'skillverse-server-'))
-  server = spawn('node', ['server/skillverse-server.mjs', '--port', String(PORT), '--project', dir], {
+  server = spawn('node', ['server/skillverse-server.mjs', '--port', String(PORT)], {
     stdio: 'ignore',
     env: { ...process.env, HOME: dir },
   })

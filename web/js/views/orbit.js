@@ -4,10 +4,24 @@
 // between planets. Click a skill to read it, a planet to fly to it; the camera
 // then follows that planet along its orbit. Click the star to see everything.
 
-import { alpha, deg, destination, ESM, escapeHtml, formatTokens, mixHex } from '../lib.js'
+import { alpha, deg, destination, ESM, escapeHtml, mixHex } from '../lib.js'
 import { glowOf, heatOf, live, liveArcs, liveRings } from '../live.js'
-import { agentCost, agents, colorOf, neighbours, pairs, regions, regionsOfAgent, skills, skillsOfAgent, twinPairs } from '../model.js'
+import {
+  agents,
+  categoriesOfAgent,
+  colorOf,
+  isBareRegion,
+  neighbours,
+  pairs,
+  regionName,
+  regions,
+  regionsOfAgent,
+  skills,
+  skillsOfAgent,
+  twinPairs,
+} from '../model.js'
 import { actions, isLitLink, isRelated, state } from '../state.js'
+import { agentSummary, allSummary } from '../summary.js'
 
 const BACKGROUND = '#04060c'
 const BRANCH = '#c4a7ff'
@@ -21,18 +35,52 @@ const ORBIT_GAP = 70
 const ORBIT_SPEED = 0.03
 const TILT = 0.22
 const FLY_MS = 1100
+/** How close (in planet radii) the camera must be for a planet's category names to show. */
+const CATEGORY_REACH = 7
 
 let THREE
 let OrbitControls
 let ThreeGlobe
 
-/** A planet's tooltip: its skills and what listing them costs. */
-const planetTip = a => {
-  const cost = agentCost(a)
-  return `<b>${escapeHtml(agents[a].label)}</b><br><span>${agents[a].count} skills · ${cost.isMeasured ? '' : '≈ '}${formatTokens(cost.listing)} tokens of descriptions in context</span><br><span>click to fly there and follow it</span>`
+/** A planet's card on hover: what the agent has and what a session costs (summary.js). */
+function planetTip(a) {
+  const agent = agents[a]
+  const from = agent.from === 'session' ? 'from a live session' : 'scanned from disk'
+  const isHere = this?.following === a
+  return `<div class="tip-head"><b>${escapeHtml(agent.label)}</b><span>${from}</span></div>
+    ${agentSummary(a)}
+    <p class="tip-hint">${isHere ? 'Double-click empty space or press Esc for every planet' : 'Click to fly there and follow it'}</p>`
 }
 
-const tooltip = i => `<b>${escapeHtml(skills[i].id)}</b><br><span>${escapeHtml(regions[skills[i].region]?.label || '')}</span>`
+/** The star's card: every agent together. */
+const starTip = () => `<div class="tip-head"><b>Skillverse</b><span>every agent on this machine</span></div>
+  ${allSummary()}
+  <p class="tip-hint">Click to see every planet · keys 1–${Math.min(9, agents.length)} jump to one, 0 back here</p>`
+
+const tooltip = i =>
+  `<div class="tip-head"><b>${escapeHtml(skills[i].name)}</b>${skills[i].kind === 'mcp' ? '<span>connector</span>' : ''}</div><span>${escapeHtml(regions[skills[i].region]?.label || '')}</span>`
+
+/**
+ * The region names written on a planet, small, without their category's word
+ * ("User · docs" is "docs"); the categories' names are tags on screen (drawCategories).
+ */
+function regionLabels(a) {
+  return categoriesOfAgent(a).flatMap(category =>
+    category.regions.flatMap(region => {
+      // A region named only by its category's word ("User", "MCP") is under the category's tag.
+      if (isBareRegion(region)) return []
+      return [
+        {
+          lat: region.lat,
+          lon: region.lon,
+          text: regionName(region),
+          color: region.color,
+          size: 0.9 + Math.min(0.9, Math.sqrt(region.count) * 0.15),
+        },
+      ]
+    }),
+  )
+}
 
 /** A region as a coloured cap on the globe (a polygon; one over a pole is closed across it). */
 function continent(region) {
@@ -67,6 +115,7 @@ function makePlanet(a) {
   const own = skillsOfAgent(a)
   const ownPairs = pairs.filter(([x]) => skills[x].agent === a)
   const ownRegions = regionsOfAgent(a)
+  const labels = regionLabels(a)
   const isOwn = p => skills[p.from].agent === a && skills[p.to].agent === a
   const globe = new ThreeGlobe({ animateIn: false })
     .showAtmosphere(true)
@@ -121,11 +170,11 @@ function makePlanet(a) {
     .arcDashGap(p => (p.live === 'comet' ? 1.4 : p.live === 'trail' ? 0.02 : isLitLink(p) ? 0.15 : 0))
     .arcDashInitialGap(p => (p.live === 'comet' ? 1 : 0))
     .arcDashAnimateTime(p => (p.live === 'comet' ? 1500 : !p.live && isLitLink(p) ? 1600 : 0))
-    .labelLat(r => deg(r.lat))
-    .labelLng(r => deg(r.lon))
-    .labelText(r => r.label)
-    .labelColor(r => mixHex(r.color, '#ffffff', 0.35))
-    .labelSize(r => 1 + Math.min(1.2, Math.sqrt(r.count) * 0.18))
+    .labelLat(l => deg(l.lat))
+    .labelLng(l => deg(l.lon))
+    .labelText(l => l.text)
+    .labelColor(l => alpha(mixHex(l.color, '#ffffff', 0.4), 0.9))
+    .labelSize(l => l.size)
     .labelDotRadius(0)
     .labelAltitude(0.03)
     .labelResolution(2)
@@ -139,12 +188,21 @@ function makePlanet(a) {
   const name = document.createElement('div')
   name.className = 'planet-name'
   name.textContent = `${agents[a].label} · ${agents[a].count}`
+  const categories = categoriesOfAgent(a).map(category => {
+    const tag = document.createElement('div')
+    tag.className = 'category-tag'
+    tag.style.setProperty('--tag', category.regions[0].color)
+    tag.innerHTML = `${escapeHtml(category.label)} <b>${category.count}</b>`
+    tag.hidden = true
+    return { ...category, tag }
+  })
 
   return {
     agent: a,
     globe,
     group,
     name,
+    categories,
     scale: 1,
     orbit: 0,
     angle: 0,
@@ -154,7 +212,7 @@ function makePlanet(a) {
         .pointsData(own)
         .arcsData([...ownPairs, ...liveArcs().filter(isOwn)])
         .ringsData(liveRings().filter(r => skills[r.i].agent === a))
-        .labelsData(ownRegions)
+        .labelsData(labels)
     },
   }
 }
@@ -192,7 +250,7 @@ export const orbitView = {
     this.planets = agents.map((_, a) => makePlanet(a))
     for (const planet of this.planets) {
       this.scene.add(planet.group)
-      this.labels.append(planet.name)
+      this.labels.append(planet.name, ...planet.categories.map(category => category.tag))
     }
     this.rings = new THREE.Group()
     this.scene.add(this.rings)
@@ -352,7 +410,34 @@ export const orbitView = {
       planet.name.classList.toggle('is-followed', planet.agent === this.following)
     }
     place(this.star.name, this.star.group.position, STAR * 1.5)
+    this.drawCategories()
     this.drawFired()
+  },
+
+  /**
+   * Each category's name over its area, on the planets the camera is close to,
+   * and only on the side facing the camera.
+   */
+  drawCategories() {
+    const { clientWidth: w, clientHeight: h } = this.el
+    const camera = this.camera.position
+    for (const planet of this.planets) {
+      const centre = planet.group.position
+      const isClose = camera.distanceTo(centre) < RADIUS * planet.scale * CATEGORY_REACH
+      for (const category of planet.categories) {
+        if (!isClose) {
+          category.tag.hidden = true
+          continue
+        }
+        const c = planet.globe.getCoords(deg(category.lat), deg(category.lon), 0.06)
+        const point = planet.group.localToWorld(new THREE.Vector3(c.x, c.y, c.z))
+        const isFacing = point.clone().sub(centre).dot(camera.clone().sub(point)) > 0
+        const at = point.project(this.camera)
+        category.tag.hidden = !isFacing || at.z > 1
+        category.tag.style.left = `${((at.x + 1) / 2) * w}px`
+        category.tag.style.top = `${((1 - at.y) / 2) * h}px`
+      }
+    }
   },
 
   /** The name of each skill that just fired, over it on screen, fading with its glow. */
@@ -467,6 +552,8 @@ export const orbitView = {
     this.flyTo(new THREE.Vector3(0, distance * 0.62, distance * 0.78), new THREE.Vector3(0, 0, 0), ms)
   },
   showAgent(agent) {
+    // A card left over from the last pointer position would describe where the camera was.
+    this.tip.hidden = true
     if (agent === 'all') this.fit()
     else this.flyToPlanet(agent)
   },
@@ -509,16 +596,20 @@ export const orbitView = {
       canvas.style.cursor = hit.i >= 0 || hit.planet >= 0 || hit.isStar ? 'pointer' : 'grab'
       this.tip.hidden = hit.i < 0 && hit.planet < 0 && !hit.isStar
       if (!this.tip.hidden) {
-        this.tip.innerHTML =
-          hit.i >= 0
-            ? tooltip(hit.i)
-            : hit.isStar
-              ? `<b>Skillverse</b><br><span>${skills.length} skills · ${agents.length} agents · click to see everything</span>`
-              : planetTip(hit.planet)
+        this.tip.innerHTML = hit.i >= 0 ? tooltip(hit.i) : hit.isStar ? starTip() : planetTip.call(this, hit.planet)
+        // Beside the pointer, flipped to its other side near the canvas's right or bottom edge.
         const rect = this.el.getBoundingClientRect()
-        this.tip.style.left = `${event.clientX - rect.left + 14}px`
-        this.tip.style.top = `${event.clientY - rect.top + 14}px`
+        const x = event.clientX - rect.left
+        const y = event.clientY - rect.top
+        const { offsetWidth: w, offsetHeight: h } = this.tip
+        this.tip.style.left = `${x + 14 + w > rect.width ? Math.max(4, x - 14 - w) : x + 14}px`
+        this.tip.style.top = `${y + 14 + h > rect.height ? Math.max(4, y - 14 - h) : y + 14}px`
       }
+    })
+    // A double-click on empty space goes back to every planet.
+    canvas.addEventListener('dblclick', event => {
+      const hit = this.pick(event)
+      if (hit.i < 0 && hit.planet < 0) actions.showAll()
     })
     canvas.addEventListener('pointerleave', () => {
       this.hovered = { i: -1, planet: -1 }
@@ -544,7 +635,7 @@ export const orbitView = {
       const hit = this.pick(event)
       if (hit.i >= 0) actions.select(hit.i, true)
       else if (hit.planet >= 0) this.flyToPlanet(hit.planet)
-      else if (hit.isStar) this.fit()
+      else if (hit.isStar) actions.showAll()
     })
   },
 

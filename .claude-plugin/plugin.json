@@ -9,14 +9,6 @@
   "homepage": "https://github.com/jonathanjuliani/skillverse",
   "repository": "https://github.com/jonathanjuliani/skillverse",
   "license": "MIT",
-  "keywords": [
-    "skills",
-    "plugins",
-    "context",
-    "tokens",
-    "graph",
-    "visualization",
-    "mod"
-  ],
+  "keywords": ["skills", "plugins", "context", "tokens", "graph", "visualization", "mod"],
   "types": "./types/index.d.ts"
 }

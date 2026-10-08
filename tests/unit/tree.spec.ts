@@ -3,7 +3,7 @@ import { byRoot, familiesOf, trimPrefix } from '../../hooks/tree'
 
 describe('byRoot', () => {
   it('gathers plugins sharing a first word under a root and leaves a loner single', () => {
-    const group = (label: string) => ({ one: { label, color: '#fff', ids: [], x: 0, y: 0, radius: 1 } })
+    const group = (label: string) => ({ one: { label, category: 'plugins' as const, color: '#fff', ids: [], x: 0, y: 0, radius: 1 } })
     const roots = byRoot([group('team-payments'), group('team-platform'), group('acme-a11y'), group('acme-database'), group('kit')])
     expect(roots.map(r => [r.root, r.groups.length])).toEqual([
       ['acme', 2],

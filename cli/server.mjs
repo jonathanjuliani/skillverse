@@ -58,7 +58,7 @@ const sleep = ms => new Promise(resolve => setTimeout(resolve, ms))
  * it to answer. Resolves to the running server; one already running is
  * returned as is (`isNew` false).
  */
-export async function start({ ports, project = process.cwd() }) {
+export async function start({ ports }) {
   const running = await findRunning(ports)
   if (running) return { ...running, isNew: false }
 
@@ -66,7 +66,7 @@ export async function start({ ports, project = process.cwd() }) {
   for (const port of ports) {
     if (!(await isFree(port))) continue
     const log = fs.openSync(LOG, 'a')
-    const child = spawn(process.execPath, [SERVER, '--port', String(port), '--project', project], {
+    const child = spawn(process.execPath, [SERVER, '--port', String(port)], {
       detached: true,
       stdio: ['ignore', log, log],
       cwd: ROOT,
@@ -87,7 +87,7 @@ export async function start({ ports, project = process.cwd() }) {
 }
 
 /** Runs the web app in this terminal until Ctrl+C; with `isDev`, restarts on code changes and reloads pages on web/ changes. */
-export async function runHere({ ports, project = process.cwd(), isDev = false }) {
+export async function runHere({ ports, isDev = false }) {
   const running = await findRunning(ports)
   if (running) throw new Error(`a Skillverse server already runs at ${running.url} (skillverse stop ends the one skillverse run started)`)
   const port = (await Promise.all(ports.map(isFree))).indexOf(true)
@@ -95,14 +95,10 @@ export async function runHere({ ports, project = process.cwd(), isDev = false })
   const watch = isDev
     ? ['--watch-path', path.join(ROOT, 'server'), '--watch-path', path.join(ROOT, 'cli'), '--watch-path', path.join(ROOT, 'hooks')]
     : []
-  const child = spawn(
-    process.execPath,
-    [...watch, SERVER, '--port', String(ports[port]), '--project', project, ...(isDev ? ['--dev'] : [])],
-    {
-      stdio: 'inherit',
-      cwd: ROOT,
-    },
-  )
+  const child = spawn(process.execPath, [...watch, SERVER, '--port', String(ports[port]), ...(isDev ? ['--dev'] : [])], {
+    stdio: 'inherit',
+    cwd: ROOT,
+  })
   child.on('exit', code => process.exit(code ?? 0))
 }
 

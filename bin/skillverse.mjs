@@ -11,7 +11,7 @@ const HELP = `Skillverse: every skill your AI agents have, as a globe, a graph a
 
 Usage:
   skillverse [--scan] [--snapshot WxH ...]   the terminal app (the default)
-  skillverse run [web] [--port N] [--project DIR]
+  skillverse run [web] [--port N]
                                              start the web app in the background
   skillverse run --here [--dev] [--port N]   run it in this terminal (--dev: reload on change)
   skillverse open                            open the web app in the browser (starts it if needed)
@@ -41,18 +41,17 @@ async function main() {
   if (flag('--version') || flag('-v')) return console.log(version())
 
   const ports = portsFor(value('--port'))
-  const project = value('--project') ?? process.cwd()
 
   switch (command) {
     case 'run': {
-      if (flag('--here') || flag('--dev')) return runHere({ ports, project, isDev: flag('--dev') })
-      const server = await start({ ports, project })
+      if (flag('--here') || flag('--dev')) return runHere({ ports, isDev: flag('--dev') })
+      const server = await start({ ports })
       console.log(server.isNew ? `Skillverse web app running at ${server.url}` : `Already running at ${server.url}`)
       console.log('skillverse open shows it, skillverse stop ends it.')
       return
     }
     case 'open': {
-      const server = await start({ ports, project })
+      const server = await start({ ports })
       console.log(`Opening ${server.url}`)
       return openInBrowser(server.url)
     }

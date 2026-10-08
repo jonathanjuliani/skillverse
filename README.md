@@ -10,7 +10,7 @@ Skillverse has two parts, installed separately; use either or both:
   - **context and token cost**: what a new empty session loads before your first message, what this session holds now, and which skill descriptions cost the most;
   - **skills used this session**, with how many times each;
   - **the terminal app** (`/sv-it`): an animated braille globe, graph and tree, full screen.
-- **The web app** (npm or a clone). A page on `localhost` with every agent's skills: Claude Code, Codex, Cursor and the shared `~/.agents` folder. The **Orbit** view puts them all in one scene: Skillverse is the star at the centre and each agent is a planet orbiting it, sized by its skill count (the biggest on the inner orbit). There are also a 3D graph with a cluster per agent and an Obsidian-style 2D graph. The **Agents** card shows what each agent's skills cost in context, and for Claude Code the new empty session and which skills it used, as the pane measures them. A skill installed for several agents is linked across them. When it runs, every Claude Code session with the plugin feeds it **live activity**: skills lighting up as they load, the path between them, subagents branching off.
+- **The web app** (npm or a clone). A page on `localhost` with what every AI agent on your machine has: Claude Code, Codex, Cursor, Gemini CLI, GitHub Copilot, opencode, Windsurf and the shared `~/.agents` folder, each agent that is installed even when nothing is found in it. Each planet is split into **Plugins**, **Your skills**, **Built-in** and **Connectors (MCP)**, and within those into each plugin or group and what it brings. The **Orbit** view puts them all in one scene: Skillverse is the star at the centre and each agent is a planet orbiting it, sized by what it has (the biggest on the inner orbit). Hover a planet for a summary: plugins, skills and connectors, each category's share, and the new empty session (measured for Claude Code) or what its skill descriptions cost. There are also a 3D graph with a cluster per agent and an Obsidian-style 2D graph. The **Agents** card shows what each agent's skills cost in context, and for Claude Code the new empty session and which skills it used, as the pane measures them. A skill installed for several agents is linked across them. When it runs, every Claude Code session with the plugin feeds it **live activity**: skills lighting up as they load, the path between them, subagents branching off.
 
 > Screenshots: _add `docs/pane.png`, `docs/web-globe.png`, `docs/terminal.png`_
 
@@ -35,6 +35,15 @@ From the marketplace:
 /plugin marketplace add jonathanjuliani/skillverse
 /plugin install skillverse@skillverse
 ```
+
+Or the plugin and the web app together. This installs `skillverse@skilldeck` when no Skillverse plugin is already installed, and installs `@jonathanjuliani/skillverse` when the web app is missing. It does not start the server.
+
+```bash
+npm i -g @jonathanjuliani/skilldeck
+skilldeck install skillverse
+```
+
+The direct routes stay: `skillverse@skillverse` for the plugin, and `npm i -g @jonathanjuliani/skillverse` for the web app. Use one plugin route per machine.
 
 Start a new session; the **Skillverse** button appears above the prompt.
 
@@ -97,11 +106,11 @@ The plugin never serves the web view itself. As a session starts, and whenever a
 ### The web app
 
 - **Orbit · 3D · 2D** at the top switch the view.
-- **Orbit:** click a planet to fly to it; the camera then follows it along its orbit (drag to look around it). Click the star to see everything again. The orbits pause while you hover a planet or read a skill. A selected skill's twins light up as bridges to the other planets. Live activity shows on the planet: skills glow and are named as they load, with a comet along the path between them (dashed for a subagent's branch).
+- **Orbit:** hover a planet for its summary, or the star for every agent's together; click a planet to fly there; the camera then follows it along its orbit (drag to look around it). The switcher over the canvas jumps to any planet or back to **All**; so do the keys **1–9** and **0**, and **Esc**, **Fit** or a double-click on empty space return to every planet. Close to a planet, each category's name sits over its area, and each plugin or group is named on the surface. Click the star to see everything again. The orbits pause while you hover a planet or read a skill. A selected skill's twins light up as bridges to the other planets. Live activity shows on the planet: skills glow and are named as they load, with a comet along the path between them (dashed for a subagent's branch).
 - Click a skill, or press **/** to search and **Enter** to open the first match. The reader shows its links, the same skill installed for other agents, and its `SKILL.md`. **Esc** closes it; **Fit** frames everything again.
 - **Live** (bottom left; the Live tab on a phone) lists skills as sessions load them. **Simulate** plays a made-up chain to show the effect, **Clear** empties it. It opens by itself on the first real activity.
 - **Follow activity** (bottom right) flies the camera to each skill as it loads. Turn it off to keep a zoomed-out view while the activity still shows; the choice is remembered.
-- **Agents** (bottom left; the Agents tab on a phone) has one row per agent: its skills and what their descriptions cost in context. Open one to fly to its planet and see the new empty session by category (Claude Code, measured by a session with the plugin), the heaviest skill descriptions, the most used skills, and its groups. Figures marked ≈ are estimates from the skill files: other agents do not report their context.
+- **Agents** (bottom left; the Agents tab on a phone) has one row per agent: its skills and what their descriptions cost in context. Open one to fly to its planet and see the new empty session by category (Claude Code, measured by a session with the plugin), the heaviest skill descriptions, the most used skills, and its categories with their groups. A connector opens in the reader with how it is reached and the other agents that have it. Figures marked ≈ are estimates from the skill files: other agents do not report their context.
 - The reader shows each skill's **cost**: its description in every session, its `SKILL.md` when it loads, and how often this Claude Code session used it.
 
 ### The terminal app
@@ -111,7 +120,20 @@ The plugin never serves the web view itself. As a session starts, and whenever a
 ## How it works
 
 - **Which skills, in the plugin:** the session's own skill listing (the one `/context` counts), plus the skill folders under `~/.claude/skills`, the project's `.claude/skills` and each listed plugin. Each `SKILL.md` is read for its description and content.
-- **Which skills, in the web app:** a scan of each agent's skill folders, at home and in the folder it was started from: `.claude/skills` (and the plugins turned on in Claude Code's settings), `.codex/skills`, `.cursor/skills` and `.agents/skills`. A Claude Code session with the plugin replaces the Claude Code part with its exact list.
+- **What the web app finds:** each agent's own folders at home (never a project's: the web app is the machine-wide view). An agent is shown when its folder exists.
+
+  | Agent | Plugins | Your skills | Built-in | Connectors (MCP) |
+  | --- | --- | --- | --- | --- |
+  | Claude Code (`~/.claude`) | turned on in `settings.json`, folders in its `CLAUDE_CODE_PLUGIN_DIRS`, and your organization's synced plugins (`plugins/synced/`, under **Organization**) | `skills/` | from a session with the plugin | `~/.claude.json`, each plugin's `.mcp.json` |
+  | Codex (`~/.codex`) | `config.toml`'s `[plugins]`, and those installed from its directory | `skills/` | `skills/.system`, the plugins it ships with | `config.toml`'s `[mcp_servers]`, plugins' servers and apps |
+  | Cursor (`~/.cursor`) | `plugins/cache`, `plugins/local` | `skills/` | `skills-cursor/` | `mcp.json`, plugins' `mcp.json` |
+  | Gemini CLI (`~/.gemini`) | `extensions/` | `skills/` | | `settings.json`, extensions' servers |
+  | GitHub Copilot (`~/.copilot`) | `installed-plugins/` | `skills/` | | `mcp-config.json` |
+  | opencode (`~/.config/opencode`) | | `skills/` | | `opencode.json`'s `mcp` |
+  | Windsurf (`~/.codeium/windsurf`) | | `skills/` | | `mcp_config.json` |
+  | Shared (`~/.agents`) | | `skills/`, grouped by the repo each came from | | |
+
+  A connector is read by its name and how it is reached (`http · host` or `stdio · command`) only: its command line, headers, environment and keys are never read into the page. A Claude Code session with the plugin replaces the Claude Code part with its exact list (built-ins and claude.ai connectors included, project skills left out); the connectors on disk stay.
 - **Links:** a skill links to another when its text names it: a full `plugin:name`, a `/name`, or a hyphenated name. It is a heuristic: some links are missed, a few are coincidental. Skills with the same name under two agents are **twins**, linked across agents.
 - **Context figures:** Claude Code's own context breakdown, estimated locally. _New empty session_ is the same breakdown without the conversation.
 - **Skills used:** counted from this session's transcript (Skill tool calls and typed `/skill` commands), then live as skills load. Skills used inside subagents are not counted.
@@ -129,7 +151,9 @@ Nothing leaves your machine except the web app's requests for its graph librarie
 - The plugin API is early access (see Requirements).
 - On the desktop app the pane cannot draw graphs that take clicks; the graphs live in the web app and the terminal app.
 - The links between skills are inferred from their text (see How it works).
-- Live activity comes from Claude Code sessions only; the other agents' planets show their skills, not their activity; their costs are estimates.
+- Live activity comes from Claude Code sessions only; the other agents' planets show what they have, not their activity; their costs are estimates.
+- A connector's tools are listed by its agent when it runs, so what they cost in context is not counted.
+- Claude Code's built-in skills are not on disk: they show once a session with the plugin sends its list. The other agents' folder layouts are read as they are today and may change with their releases.
 
 ## Develop
 

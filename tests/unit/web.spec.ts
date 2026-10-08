@@ -47,12 +47,14 @@ describe('combineAgents', () => {
     return { id, label: id, from: 'scan' as const, data: buildWebData(skills, regions, graph, layoutGlobe(skills, regions), '') }
   }
 
-  it('keeps each agent, shifts indexes, prefixes ids after the first, and links twins', () => {
+  it('keeps each agent, an empty one too, shifts indexes, prefixes ids after the first, and links twins', () => {
     const data = combineAgents([part('claude', ['docs', 'lint']), part('empty', []), part('codex', ['docs'])], '')
-    expect(data.agents?.map(agent => agent.id)).toEqual(['claude', 'codex'])
+    expect(data.agents?.map(agent => agent.id)).toEqual(['claude', 'empty', 'codex'])
+    expect(data.agents?.[1]?.count).toBe(0)
     expect(data.skills.map(skill => skill.id)).toEqual(['docs', 'lint', 'codex/docs'])
-    expect(data.skills[2]?.agent).toBe(1)
-    expect(data.regions[data.skills[2]?.region ?? -1]?.agent).toBe(1)
+    expect(data.skills[2]?.agent).toBe(2)
+    expect(data.regions[data.skills[2]?.region ?? -1]?.agent).toBe(2)
+    expect(Number.isFinite(data.skills[2]?.x)).toBe(true)
     expect(data.skills[0]?.twins).toEqual([2])
     expect(data.skills[2]?.twins).toEqual([0])
     expect(data.skills[1]?.twins).toBeUndefined()
@@ -70,5 +72,25 @@ describe('combineAgents', () => {
     const right = Math.max(...data.skills.filter(skill => skill.agent === 0).map(skill => skill.x))
     const left = Math.min(...data.skills.filter(skill => skill.agent === 1).map(skill => skill.x))
     expect(left).toBeGreaterThan(right)
+  })
+
+  it('sums up each agent by category: skills, connectors and the plugins they came with', () => {
+    const skills: Skill[] = [
+      { id: 'kit:create', name: 'create', plugin: 'kit', source: 'plugin', region: '', description: '', body: '', links: [] },
+      { id: 'docs', name: 'docs', source: 'userSettings', region: '', description: '', body: '', links: [] },
+      { id: 'mcp/kit/api', name: 'api', plugin: 'kit', kind: 'mcp', source: 'mcp', region: '', description: '', body: '', links: [] },
+    ]
+    assignRegions(skills)
+    const { regions, graph } = layoutGraph(skills)
+    const data = combineAgents(
+      [{ id: 'claude', label: 'Claude Code', from: 'scan', data: buildWebData(skills, regions, graph, layoutGlobe(skills, regions), '') }],
+      '',
+    )
+    expect(data.agents?.[0]?.summary).toEqual({ skills: 2, connectors: 1, plugins: 1, byCategory: { mcp: 1, plugins: 1, user: 1 } })
+    expect(data.regions.map(region => [region.category, region.label])).toEqual([
+      ['plugins', 'kit'],
+      ['user', 'User'],
+      ['mcp', 'MCP · from plugins'],
+    ])
   })
 })

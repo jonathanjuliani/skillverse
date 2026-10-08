@@ -6,6 +6,25 @@ Add each change under **Unreleased** as you make it; `pnpm version` moves them u
 
 ## [Unreleased]
 
+### Added
+
+- Document `skilldeck install skillverse`: the Skillverse plugin when none is installed, and the web app when it is missing. The direct marketplace and npm routes stay.
+- The web app finds more agents: Gemini CLI, GitHub Copilot, opencode and Windsurf, beside Claude Code, Codex, Cursor and `~/.agents`. Every installed agent is a planet, even with nothing found in it.
+- Each planet is split into **Plugins**, **Your skills**, **Built-in** and **Connectors (MCP)**, each its own colour, with a region per plugin or group inside. Codex's and Cursor's plugins, built-ins and connectors are read from their folders; shared skills are grouped by the repo they were installed from.
+- Claude Code's plugins synced from a claude.ai organization (`~/.claude/plugins/synced/`) show under **Organization**, one group per plugin, when the folder exists.
+- **Connectors**: MCP servers and apps, from each agent's config and from its plugins, read by name and transport only (never commands, headers or keys).
+- Hovering a planet shows a summary card: plugins, skills and connectors, each category's share, and the new empty session (measured for Claude Code) or its skill descriptions' cost. Hovering the star shows every agent's together. The open agent in the Agents card starts with the same summary. Close to a planet, category names sit over their areas.
+- A planet switcher over the canvas (**All** and each agent), keys **1–9** and **0**, and **Esc** or a double-click on empty space to get back to every planet; **Fit** does too when an agent is open.
+
+### Changed
+
+- The web app shows the machine, not a project: project skills are no longer scanned or kept from a session's list, and `skillverse run` no longer takes `--project`.
+- The Agents card lists an agent's groups under its categories.
+
+### Fixed
+
+- `pnpm version` formats the plugin files it writes, so a release passes lint.
+
 ## [0.2.0] - 2026-10-08
 
 ### Added

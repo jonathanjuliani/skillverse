@@ -13,7 +13,7 @@ import { orbitView } from './views/orbit.js'
 
 const views = { orbit: orbitView, '3d': graph3dView, '2d': graph2dView }
 const HINTS = {
-  orbit: 'drag to orbit · scroll to zoom · click a planet to follow it · click the star for everything',
+  orbit: 'drag to orbit · scroll to zoom · click a planet to follow it · Esc, 0 or double-click for every planet',
   '3d': 'drag to orbit · scroll to zoom · click a skill',
   '2d': 'drag to pan · scroll to zoom · click a skill',
 }
@@ -105,6 +105,8 @@ function setAgent(agent, isFlying = true) {
   const v = current()
   if (isFlying && v.ready) v.showAgent?.(agent)
 }
+
+actions.showAll = () => setAgent('all')
 
 /** The orbit view started following a planet (a click on it): open its agent without flying again. */
 actions.followed = a => {
@@ -254,7 +256,8 @@ function setupLive() {
 document.addEventListener('click', event => {
   const target = event.target.closest('[data-skill],[data-region],[data-agent],#copy,#back,#clear')
   if (!target) return
-  if (target.dataset.agent) {
+  if (target.dataset.agent === 'all') setAgent('all')
+  else if (target.dataset.agent) {
     // A second click on the open agent closes it and frames everything again.
     const a = Number(target.dataset.agent)
     setAgent(state.agent === a ? 'all' : a)
@@ -282,7 +285,19 @@ document.addEventListener('keydown', event => {
     if (isNarrow()) $('search-toggle').click()
     else $('search').focus()
   }
-  if (event.key === 'Escape' && state.selected >= 0 && document.activeElement?.tagName !== 'INPUT') actions.select(-1)
+  const isTyping = ['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement?.tagName ?? '')
+  if (isTyping || event.metaKey || event.ctrlKey || event.altKey) return
+  // Esc closes the open skill first, then leaves the planet for every planet.
+  if (event.key === 'Escape') {
+    if (state.selected >= 0) actions.select(-1)
+    else if (state.agent !== 'all') setAgent('all')
+  }
+  // 1–9 fly to that planet, 0 back to all of them.
+  if (/^[0-9]$/.test(event.key)) {
+    const a = Number(event.key) - 1
+    if (a < 0) setAgent('all')
+    else if (a < agents.length) setAgent(a)
+  }
 })
 
 window.addEventListener('resize', () => {
@@ -296,6 +311,7 @@ $('fit').addEventListener('click', () => {
   const v = current()
   if (!v.ready) return
   if (state.selected >= 0) v.focus(state.selected)
+  else if (state.agent !== 'all') setAgent('all')
   else v.fit()
 })
 

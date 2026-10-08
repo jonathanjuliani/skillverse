@@ -1,5 +1,5 @@
 import type { GraphProps, Region } from './layout'
-import type { Skill } from './skills'
+import type { Category, Skill } from './skills'
 
 const BODY_LIMIT = 6000
 
@@ -10,6 +10,11 @@ export type WebSkill = {
   agent?: number
   /** Index into `regions`. */
   region: number
+  category: Category
+  /** A connector (an MCP server) rather than a skill. */
+  kind?: 'mcp'
+  /** The plugin it came with. */
+  plugin?: string
   description: string
   path?: string
   /** SKILL.md's body, cut at BODY_LIMIT characters. */
@@ -28,6 +33,7 @@ export type WebSkill = {
 
 export type WebRegion = {
   label: string
+  category: Category
   color: string
   count: number
   lat: number
@@ -51,13 +57,42 @@ export type AgentStats = {
   measuredAt?: string
 }
 
-/** An AI agent whose skills are shown, each a planet; `from` says how its list was found. */
-export type WebAgent = { id: string; label: string; count: number; from: 'scan' | 'session'; stats?: AgentStats }
+/** What an agent has, by category: skills and connectors in each, and how many plugins brought them. */
+export type AgentSummary = { skills: number; connectors: number; plugins: number; byCategory: Partial<Record<Category, number>> }
+
+/**
+ * An AI agent whose skills are shown, each a planet; `from` says how its list
+ * was found. `count` is everything on the planet, skills and connectors.
+ * `notes` says what a scan cannot see for it (Claude Code's built-in skills).
+ */
+export type WebAgent = {
+  id: string
+  label: string
+  count: number
+  from: 'scan' | 'session'
+  summary: AgentSummary
+  stats?: AgentStats
+  notes?: string[]
+}
 
 export type WebData = { generatedAt: string; skills: WebSkill[]; regions: WebRegion[]; agents?: WebAgent[] }
 
 /** One agent's own data (from buildWebData), to combine with the others'. */
-export type AgentPart = { id: string; label: string; from: WebAgent['from']; data: WebData; stats?: AgentStats }
+export type AgentPart = { id: string; label: string; from: WebAgent['from']; data: WebData; stats?: AgentStats; notes?: string[] }
+
+/** An agent's skills and connectors counted by category, and the plugins they came with. */
+export function summarise(skills: Pick<WebSkill, 'category' | 'kind' | 'plugin'>[]): AgentSummary {
+  const byCategory: AgentSummary['byCategory'] = {}
+  for (const skill of skills) byCategory[skill.category] = (byCategory[skill.category] ?? 0) + 1
+  const connectors = skills.filter(skill => skill.kind === 'mcp').length
+
+  return {
+    skills: skills.length - connectors,
+    connectors,
+    plugins: new Set(skills.flatMap(skill => (skill.plugin ? [skill.plugin] : []))).size,
+    byCategory,
+  }
+}
 
 /** Space left between two agents' 2D graphs. */
 const AGENT_GAP = 160
@@ -74,6 +109,7 @@ export function buildWebData(skills: Skill[], regions: Region[], graph: GraphPro
 
       return {
         label: region.label,
+        category: region.category,
         color: region.color,
         count: region.ids.length,
         lat: cap?.[2] ?? 0,
@@ -87,10 +123,13 @@ export function buildWebData(skills: Skill[], regions: Region[], graph: GraphPro
       id: skill.id,
       name: skill.name,
       region: regionIndex.get(skill.region) ?? 0,
+      category: skill.category ?? 'user',
+      ...(skill.kind ? { kind: skill.kind } : {}),
+      ...(skill.plugin ? { plugin: skill.plugin } : {}),
       description: skill.description,
       ...(skill.path ? { path: skill.path } : {}),
       body: skill.body.length > BODY_LIMIT ? `${skill.body.slice(0, BODY_LIMIT)}\n\n…` : skill.body,
-      chars: skill.body.length,
+      chars: skill.chars ?? skill.body.length,
       links: skill.links.flatMap(id => {
         const at = position.get(id)
         return at === undefined ? [] : [at]
@@ -108,17 +147,17 @@ export function buildWebData(skills: Skill[], regions: Region[], graph: GraphPro
  * indexes are shifted into the combined lists, the 2D graphs sit side by side,
  * and a skill installed for several agents (same name) is linked to its twins.
  * Ids of every agent but the first are prefixed with the agent's (`codex/docs`).
+ * An agent with nothing found is kept: it is installed, so it is a planet.
  */
 export function combineAgents(parts: AgentPart[], generatedAt: string): WebData {
-  const shown = parts.filter(part => part.data.skills.length > 0)
   const skills: WebSkill[] = []
   const regions: WebRegion[] = []
   let right = 0
 
-  for (const [agent, part] of shown.entries()) {
+  for (const [agent, part] of parts.entries()) {
     const xs = [...part.data.skills.map(skill => skill.x), ...part.data.regions.map(region => region.x)]
-    const shift = agent === 0 ? 0 : right + AGENT_GAP - Math.min(...xs)
-    right = Math.max(...xs) + shift
+    const shift = agent === 0 || xs.length === 0 ? 0 : right + AGENT_GAP - Math.min(...xs)
+    if (xs.length > 0) right = Math.max(...xs) + shift
     const skillBase = skills.length
     const regionBase = regions.length
     for (const region of part.data.regions) regions.push({ ...region, agent, x: Math.round(region.x + shift) })
@@ -143,12 +182,14 @@ export function combineAgents(parts: AgentPart[], generatedAt: string): WebData 
 
   return {
     generatedAt,
-    agents: shown.map(part => ({
+    agents: parts.map(part => ({
       id: part.id,
       label: part.label,
       count: part.data.skills.length,
       from: part.from,
+      summary: summarise(part.data.skills),
       ...(part.stats ? { stats: part.stats } : {}),
+      ...(part.notes?.length ? { notes: part.notes } : {}),
     })),
     regions,
     skills,

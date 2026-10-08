@@ -18,11 +18,7 @@
       },
       "homepage": "https://github.com/jonathanjuliani/skillverse",
       "license": "MIT",
-      "keywords": [
-        "skills",
-        "context",
-        "visualization"
-      ]
+      "keywords": ["skills", "context", "visualization"]
     }
   ]
 }

@@ -18,6 +18,8 @@ export const actions = {
   refresh: () => {},
   /** A view started following an agent's planet by itself. */
   followed: _agent => {},
+  /** Back to every agent: the whole system in view. */
+  showAll: () => {},
 }
 
 export const isLitLink = ([a, b]) => a === state.selected || b === state.selected || a === state.hover || b === state.hover

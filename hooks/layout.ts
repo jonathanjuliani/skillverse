@@ -1,8 +1,10 @@
-import type { Skill } from './skills'
+import type { Category, Skill } from './skills'
 
 /** A group of skills (a plugin, or a source and name family) placed on the map. */
 export type Region = {
   label: string
+  /** The top-level group its skills belong to (Plugins, Your skills, Built-in, Connectors). */
+  category: Category
   color: string
   ids: string[]
   x: number
@@ -28,24 +30,25 @@ const SPACING = 8
 const REGION_GAP = 10
 const RELAX_STEPS = 50
 const GOLDEN = Math.PI * (3 - Math.sqrt(5))
-const PALETTE = [
-  '#7aa2f7',
-  '#9ece6a',
-  '#e0af68',
-  '#f7768e',
-  '#bb9af7',
-  '#7dcfff',
-  '#ff9e64',
-  '#73daca',
-  '#c678dd',
-  '#2ac3de',
-  '#e5c07b',
-  '#98c379',
-  '#d19a66',
-  '#56b6c2',
-  '#ff79c6',
-  '#b4f9f8',
-]
+/** Each category's hue, in the order categories are laid out; its regions take lighter and darker shades of it, so a category reads as one area. */
+const CATEGORY_COLORS: Record<Category, string> = {
+  plugins: '#7aa2f7',
+  user: '#9ece6a',
+  builtin: '#e0af68',
+  mcp: '#bb9af7',
+  org: '#7dcfff',
+  project: '#ff9e64',
+}
+/** How far each next region of a category moves from its hue: toward white, then toward dark, alternating. */
+const SHADES = [0, 0.3, -0.25, 0.5, -0.4, 0.15, -0.12, 0.4]
+
+function shade(hex: string, amount: number): string {
+  const n = Number.parseInt(hex.slice(1), 16)
+  const toward = amount >= 0 ? 255 : 40
+  const mix = (channel: number) => Math.round(channel + (toward - channel) * Math.abs(amount))
+  const [r, g, b] = [mix((n >> 16) & 255), mix((n >> 8) & 255), mix(n & 255)]
+  return `#${((1 << 24) | (r << 16) | (g << 8) | b).toString(16).slice(1)}`
+}
 
 type Point = { x: number; y: number }
 
@@ -162,20 +165,31 @@ function edgePairs(skills: Skill[]): number[] {
 export function layoutGraph(skills: Skill[]): { regions: Region[]; graph: GraphProps } {
   const neighbours = neighboursOf(skills)
 
-  const grouped = new Map<string, string[]>()
+  const grouped = new Map<string, { category: Category; ids: string[] }>()
   for (const skill of skills) {
-    grouped.set(skill.region, [...(grouped.get(skill.region) ?? []), skill.id])
+    const group = grouped.get(skill.region) ?? { category: skill.category ?? 'user', ids: [] }
+    group.ids.push(skill.id)
+    grouped.set(skill.region, group)
   }
+  // A category's regions next to each other (biggest first), so it reads as one area.
+  const order = Object.keys(CATEGORY_COLORS)
+  const rank = (category: Category) => order.indexOf(category)
+  const shadeOf = new Map<Category, number>()
   const regions: Region[] = [...grouped.entries()]
-    .sort((a, b) => b[1].length - a[1].length || a[0].localeCompare(b[0]))
-    .map(([label, ids], i) => ({
-      label,
-      color: PALETTE[i % PALETTE.length] ?? '#7aa2f7',
-      ids,
-      x: 0,
-      y: 0,
-      radius: SPACING * Math.sqrt(ids.length) + SPACING,
-    }))
+    .sort((a, b) => rank(a[1].category) - rank(b[1].category) || b[1].ids.length - a[1].ids.length || a[0].localeCompare(b[0]))
+    .map(([label, { category, ids }]) => {
+      const k = shadeOf.get(category) ?? 0
+      shadeOf.set(category, k + 1)
+      return {
+        label,
+        category,
+        color: shade(CATEGORY_COLORS[category], SHADES[k % SHADES.length] ?? 0),
+        ids,
+        x: 0,
+        y: 0,
+        radius: SPACING * Math.sqrt(ids.length) + SPACING,
+      }
+    })
 
   const placed: Region[] = []
   for (const region of regions) {
@@ -252,12 +266,26 @@ export function layoutGlobe(skills: Skill[], regions: Region[]): GraphProps {
   const neighbours = neighboursOf(skills)
   const total = Math.max(1, skills.length)
   const scale = Math.sqrt((4 * GLOBE_FILL) / total)
-  const caps = regions.map((region, k) => {
-    const y = 1 - (2 * (k + 0.5)) / regions.length
-    const ring = Math.sqrt(1 - y * y)
+  // Each category starts from its own point on the sphere, its regions in a
+  // small spiral around it, so the push apart below keeps them together.
+  const kinds = [...new Set(regions.map(region => region.category))]
+  const seedOf = new Map(
+    kinds.map((category, k) => {
+      const y = kinds.length === 1 ? 0 : 1 - (2 * (k + 0.5)) / kinds.length
+      const ring = Math.sqrt(1 - y * y)
+      return [category, [ring * Math.cos(k * GOLDEN * 2), ring * Math.sin(k * GOLDEN * 2), y] as Vec]
+    }),
+  )
+  const inCategory = new Map<Category, number>()
+  const caps = regions.map(region => {
+    const k = inCategory.get(region.category) ?? 0
+    inCategory.set(region.category, k + 1)
+    const seed = seedOf.get(region.category) ?? [1, 0, 0]
+    const [lat, lon] = fromVec(seed)
+    const [toLat, toLon] = k === 0 ? [lat, lon] : destination(lat, lon, k * GOLDEN, 0.12 * Math.sqrt(k))
     return {
       region,
-      at: [ring * Math.cos(k * GOLDEN), ring * Math.sin(k * GOLDEN), y] as Vec,
+      at: [Math.cos(toLat) * Math.cos(toLon), Math.cos(toLat) * Math.sin(toLon), Math.sin(toLat)] as Vec,
       radius: Math.min(1.2, scale * Math.sqrt(region.ids.length) + 0.03),
     }
   })

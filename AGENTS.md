@@ -37,7 +37,7 @@ The desktop app draws pane text in a proportional font and refuses a tree past 1
 
 ## When changing the web app's server
 
-It must keep refusing requests whose Host is not `localhost`/`127.0.0.1` and requests from another site's Origin, and keep sending no CORS headers. `tests/unit/server.spec.ts` pins this; do not weaken a test to pass. A new agent to scan goes in `AGENTS` in `cli/scan.mjs`, with a case in `tests/unit/scan.spec.ts`.
+It must keep refusing requests whose Host is not `localhost`/`127.0.0.1` and requests from another site's Origin, and keep sending no CORS headers. `tests/unit/server.spec.ts` pins this; do not weaken a test to pass. A new agent to scan goes in `AGENTS` in `cli/agents.mjs` (a function that reads its folders through the collector), with a case in `tests/unit/scan.spec.ts`. Connectors keep only a name and transport: never read a command line, header, environment or key into the page.
 
 ## When releasing
 
