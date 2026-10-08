@@ -40,9 +40,12 @@ jobs:
       - name: Plugin tests (the pane, against the engine)
         run: pnpm run test:plugin
 
-      # tsconfig.json extends the types Claude Code writes when it loads the plugin (above).
+      # tsconfig.json extends the types Claude Code writes when a session loads the
+      # plugin, which CI cannot start (no API key): check the plugin only when they
+      # are there, the unit tests always.
       - name: Type check
-        run: pnpm run typecheck
+        run: |
+          if [ -d .claude-plugin/types ]; then pnpm run typecheck; else pnpm exec tsc -p tsconfig.test.json; fi
 
       - name: Build and run the terminal app
         run: |

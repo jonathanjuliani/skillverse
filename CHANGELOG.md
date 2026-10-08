@@ -6,6 +6,10 @@ Add each change under **Unreleased** as you make it; `pnpm version` moves them u
 
 ## [Unreleased]
 
+### Fixed
+
+- CI and the release run the unit and plugin tests on a fresh checkout: Vitest no longer reads the plugin types Claude Code generates locally, and `pnpm run test:plugin` turns on function hooks itself. The npm package is published again (0.2.0 and 0.2.1 were not).
+
 ## [0.2.1] - 2026-10-08
 
 ### Added

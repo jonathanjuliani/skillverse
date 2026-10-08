@@ -32,7 +32,7 @@
     "format": "biome check --write .",
     "typecheck": "tsc -p . && tsc -p tsconfig.test.json",
     "test": "vitest run",
-    "test:plugin": "claude plugin test .",
+    "test:plugin": "CLAUDE_CODE_ENABLE_FUNCTION_HOOKS=1 claude plugin test .",
     "validate": "claude plugin validate .claude-plugin/plugin.json && claude plugin validate .",
     "snapshot": "node bin/skillverse.mjs --scan --snapshot 120x32 --frames 20 --plain"
   },
