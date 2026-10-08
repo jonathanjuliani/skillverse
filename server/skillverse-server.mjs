@@ -1,11 +1,20 @@
 #!/usr/bin/env node
 // Skillverse server: serves the web view and relays live events to it.
 //
-//   node server/skillverse-server.mjs --dir <folder with index.html, data.js> [--port 4317] [--keep 50] [--log events.ndjson]
+//   node server/skillverse-server.mjs [--port 4317] [--project <folder>] [--dev] [--keep 50] [--log events.ndjson]
 //
+// The web app: the page from web/, the skills from a scan of every agent on
+// this machine (and of --project's skill folders), rebuilt on POST /refresh.
+// --dev reloads open pages when a file under web/ changes. `skillverse run`
+// starts it; the Claude Code plugin only finds it and feeds it.
+//
+//   GET  /data.js         the skills, as window.SKILLVERSE = {...}
+//   POST /refresh         scan again
+//   POST /skills          {"agent":"claude","data":{...},"stats":{...}}: a session's exact list (and what it
+//                         measured: the new empty session, listing cost, uses), replacing that agent's scan
 //   POST /events          one event or an array: {"kind":"skill","skill":"docs:write","agent":"main","turn":3,"session":"a1b2c3d4","project":"my-app"}
 //   GET  /events/stream   server-sent events: the last --keep events (marked history), then each new one
-//   GET  /health          {"ok":true,"skillverse":true,"clients":1,"seq":42}
+//   GET  /health          {"ok":true,"skillverse":true,"version":"0.1.0","clients":1,"seq":42,"pid":123}
 //
 // Nothing is written to disk unless --log names a file (one JSON line per event).
 // It listens on 127.0.0.1 only, answers only requests addressed to this
@@ -15,16 +24,23 @@
 import fs from 'node:fs'
 import http from 'node:http'
 import path from 'node:path'
+import { fileURLToPath } from 'node:url'
 
 const arg = (name, fallback) => {
   const at = process.argv.indexOf(name)
   return at >= 0 ? process.argv[at + 1] : fallback
 }
-const DIR = path.resolve(arg('--dir', '.'))
+const HERE = path.dirname(fileURLToPath(import.meta.url))
+const VERSION = JSON.parse(fs.readFileSync(path.join(HERE, '..', 'package.json'), 'utf8')).version
+const DIR = path.join(HERE, '..', 'web')
+const PROJECT = path.resolve(arg('--project', process.cwd()))
+const IS_DEV = process.argv.includes('--dev')
 const PORT = Number(arg('--port', 4317))
 const KEEP = Number(arg('--keep', 50))
 const LOG = arg('--log', '')
 const MAX_BODY = 64 * 1024
+// A session's skill list carries every SKILL.md body (cut at 6000 characters each).
+const MAX_SKILLS_BODY = 16 * 1024 * 1024
 const KINDS = new Set(['skill', 'agent', 'tool', 'turn'])
 const TYPES = {
   '.html': 'text/html; charset=utf-8',
@@ -34,6 +50,9 @@ const TYPES = {
 }
 
 let seq = 0
+// The web app's skills: one part per agent (a scan, or a session's own list), combined on ask.
+let parts
+let data
 let recent = []
 const clients = new Set()
 
@@ -59,13 +78,57 @@ function publish(event) {
   if (LOG) fs.appendFile(LOG, `${JSON.stringify(event)}\n`, () => {})
 }
 
-function readBody(request) {
+/**
+ * The web app's skills as the page loads them: every agent scanned on first
+ * ask and again on POST /refresh, where a session's own list (POST /skills)
+ * stays in place of its agent's scan.
+ */
+async function skillsScript(isFresh = false) {
+  const scan = await import('../cli/scan.mjs')
+  if (!parts || isFresh) {
+    const sent = new Map((parts ?? []).filter(part => part.from === 'session').map(part => [part.id, part]))
+    parts = scan.scanParts(PROJECT).map(part => sent.get(part.id) ?? part)
+    data = undefined
+  }
+  data ??= (await import('../cli/shared.mjs').then(shared => shared.load('web'))).combineAgents(parts, new Date().toISOString())
+  return `window.SKILLVERSE = ${JSON.stringify(data)}\n`
+}
+
+/** A session's stats as the plugin sends them: an object of the known keys, nothing else kept. */
+function isStats(value) {
+  const isObject = item => item !== null && typeof item === 'object' && !Array.isArray(item)
+  return isObject(value) && Object.keys(value).every(key => ['baseline', 'listing', 'uses', 'measuredAt'].includes(key))
+}
+
+/** Takes a session's skill list for one agent; resolves to how many skills it holds. */
+async function takeSkills(body) {
+  const { agent, data: sent, stats } = JSON.parse(body)
+  if (typeof agent !== 'string' || !Array.isArray(sent?.skills) || !Array.isArray(sent?.regions))
+    throw new Error('expected {"agent","data":{"skills","regions"}}')
+  await skillsScript()
+  const { AGENTS } = await import('../cli/scan.mjs')
+  const known = AGENTS.find(item => item.id === agent)
+  if (!known) throw new Error(`unknown agent: ${agent}`)
+  const part = { id: agent, label: known.label, from: 'session', data: sent, ...(isStats(stats) ? { stats } : {}) }
+  parts = [...parts.filter(item => item.id !== agent), part].sort(
+    (a, b) => AGENTS.findIndex(item => item.id === a.id) - AGENTS.findIndex(item => item.id === b.id),
+  )
+  data = undefined
+  return sent.skills.length
+}
+
+/** Tells every open page something other than an event (a named server-sent event). */
+function signal(name) {
+  for (const client of clients) client.write(`event: ${name}\ndata: {}\n\n`)
+}
+
+function readBody(request, limit = MAX_BODY) {
   return new Promise((resolve, reject) => {
     let size = 0
     const chunks = []
     request.on('data', chunk => {
       size += chunk.length
-      if (size > MAX_BODY) {
+      if (size > limit) {
         reject(new Error('body too large'))
         request.destroy()
       } else chunks.push(chunk)
@@ -122,7 +185,36 @@ const server = http.createServer(async (request, response) => {
     return
   }
 
-  if (url.pathname === '/health') return send(response, 200, { ok: true, skillverse: true, clients: clients.size, seq })
+  if (url.pathname === '/health')
+    return send(response, 200, { ok: true, skillverse: true, version: VERSION, clients: clients.size, seq, pid: process.pid })
+
+  if (url.pathname === '/data.js') {
+    try {
+      return send(response, 200, await skillsScript(), TYPES['.js'])
+    } catch (error) {
+      return send(response, 500, `console.error(${JSON.stringify(`Skillverse could not scan: ${error.message}`)})`, TYPES['.js'])
+    }
+  }
+
+  if (url.pathname === '/skills' && request.method === 'POST') {
+    try {
+      const count = await takeSkills(await readBody(request, MAX_SKILLS_BODY))
+      signal('reload')
+      return send(response, 200, { ok: true, skills: count })
+    } catch (error) {
+      return send(response, 400, { ok: false, error: error.message })
+    }
+  }
+
+  if (url.pathname === '/refresh' && request.method === 'POST') {
+    try {
+      await skillsScript(true)
+      signal('reload')
+      return send(response, 200, { ok: true, skills: parts.reduce((sum, part) => sum + part.data.skills.length, 0) })
+    } catch (error) {
+      return send(response, 500, { ok: false, error: error.message })
+    }
+  }
 
   // Static files from DIR, never outside it.
   const file = path.resolve(DIR, `.${url.pathname === '/' ? '/index.html' : decodeURIComponent(url.pathname)}`)
@@ -147,6 +239,17 @@ server.on('error', error => {
   console.error(`skillverse-server: ${error.message}`)
   process.exit(1)
 })
+if (IS_DEV) {
+  // Editors save in bursts; one reload per burst.
+  let timer
+  fs.watch(DIR, { recursive: true }, () => {
+    clearTimeout(timer)
+    timer = setTimeout(() => signal('reload'), 100)
+  })
+}
+
 server.listen(PORT, '127.0.0.1', () =>
-  console.log(`skillverse-server: http://localhost:${PORT}/ serving ${DIR}${LOG ? `, logging to ${LOG}` : ''}`),
+  console.log(
+    `skillverse-server: http://localhost:${PORT}/ serving ${DIR}${IS_DEV ? ' (reloading on change)' : ''}${LOG ? `, logging to ${LOG}` : ''}`,
+  ),
 )

@@ -14,12 +14,13 @@ personal_defaults: jonathanjuliani/skills (plugin jon), resolve-conventions/defa
 shape:
   value: single package
   tier: detected
-  evidence: one package.json at the root; the repo is a Claude Code plugin (.claude-plugin/plugin.json) and an npm package (tui/)
+  evidence: one package.json at the root; the repo is a Claude Code plugin (.claude-plugin/plugin.json) and an npm package (bin/, cli/, server/, web/, tui/)
   surfaces:
-    - plugin: hooks/ (Claude Code function-hooks module, the pane)
-    - server: server/skillverse-server.mjs (Node, local web view server)
-    - web: web/index.html (static page, libraries from a CDN)
-    - cli: tui/skillverse.mjs (terminal app, the npm package)
+    - plugin: hooks/ (Claude Code function-hooks module, the pane and commands; feeds the web app)
+    - cli: bin/skillverse.mjs and cli/ (the skillverse command: run, open, status, stop; the scan of agents)
+    - server: server/skillverse-server.mjs (Node, the web app's local server)
+    - web: web/ (static page, plain ES modules, no build step; libraries from a CDN)
+    - tui: tui/skillverse.mjs (terminal app)
 
 conventions:
   module_system:

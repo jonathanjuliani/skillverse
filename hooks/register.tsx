@@ -15,6 +15,21 @@ const LINK_LIMIT = 24
 const MATCH_LIMIT = 24
 const WEB_PORTS = [4317, 4318, 4319, 4320]
 
+const PANE_DESCRIPTION = 'Browse every skill this session has: grouped tree, links, context cost, web view'
+const TERMINAL_DESCRIPTION = 'Open Skillverse full screen in a terminal (the Terminal panel in the desktop app)'
+const COMMANDS = [
+  ['skillverse', PANE_DESCRIPTION],
+  ['sv', `${PANE_DESCRIPTION} (short for /skillverse)`],
+  ['skillverse-it', TERMINAL_DESCRIPTION],
+  ['sv-it', `${TERMINAL_DESCRIPTION} (short for /skillverse-it)`],
+] as const
+
+/** The ports to look for the web view on: SKILLVERSE_PORT alone when set, else WEB_PORTS. */
+async function webPorts($: EngineInterface): Promise<number[]> {
+  const chosen = Number((await $.env.get('SKILLVERSE_PORT')) ?? '')
+  return Number.isInteger(chosen) && chosen > 0 && chosen < 65536 ? [chosen] : WEB_PORTS
+}
+
 const web = atom({ plugin: 'skillverse', key: 'web' } as const, '')
 const selected = atom({ plugin: 'skillverse', key: 'selected' } as const, null as string | null)
 const expanded = atom({ plugin: 'skillverse', key: 'expanded' } as const, [] as string[])
@@ -35,6 +50,9 @@ const describe = (error: unknown) => (error instanceof Error ? error.message : S
  * port nobody serves): on failure it writes `what` and the error to the debug
  * log and returns undefined, so the caller falls back without hiding why.
  */
+/** A failed hook's reason, for the message its .catch shows. */
+const failureOf = (failure: { kind: string; message?: string }) => failure.message ?? failure.kind
+
 async function safe<T>($: EngineInterface, what: string, run: () => Promise<T>): Promise<T | undefined> {
   try {
     return await run()
@@ -314,7 +332,7 @@ async function whoAmI($: EngineInterface): Promise<{ session: string; project: s
 
 /** A Skillverse server any session started, found by its /health answer; undefined when none runs. */
 async function findServer($: EngineInterface): Promise<{ port: number; url: string; isLive: boolean } | undefined> {
-  for (const port of WEB_PORTS) {
+  for (const port of await webPorts($)) {
     const url = `http://localhost:${port}/`
     const health = await safe($, `probe ${url}health`, () => $.http.fetch(`${url}health`))
     if (health?.ok && health.text.includes('"skillverse":true')) {
@@ -346,6 +364,10 @@ function record($: EngineInterface, event: Omit<LiveEvent, 'seq' | 'at' | 'turn'
       if (!server?.isLive && at - lastLook > LOOK_EVERY_MS) {
         lastLook = at
         server = (await findServer($)) ?? server
+        // A web app started after this session: it gets the session's skills before the events.
+        if (server?.isLive && index) {
+          await sendSkills($, server.url, index)
+        }
       }
       if (!server?.isLive) {
         pending = [...pending, entry].slice(-PENDING_LIMIT)
@@ -366,85 +388,102 @@ function record($: EngineInterface, event: Omit<LiveEvent, 'seq' | 'at' | 'turn'
     })
 }
 
-async function isServing($: EngineInterface, url: string): Promise<boolean> {
-  const probe = await safe($, `probe ${url}`, () => $.http.fetch(url))
+/** What Open web view shows when the web app is not running: installed but stopped, or not installed. */
+const WEB_STOPPED = 'stopped'
+const WEB_MISSING = 'missing'
+const WEB_INSTALL = 'npm install -g @jonathanjuliani/skillverse'
 
-  return probe?.ok === true
-}
-
-/** Runs `argv` for the session's life (the module unloading ends it); clears `server` when it exits. */
-function keepRunning($: EngineInterface, argv: string[], port: number): void {
-  void (async () => {
-    const child = $.process.spawn({ argv })
-    try {
-      for await (const chunk of child) {
-        void chunk
-      }
-    } catch (error) {
-      // The port was taken or the runtime is missing; the probe says so.
-      $.ui.log(`skillverse: the web view server on port ${port} stopped: ${describe(error)}`, { to: 'debug' })
-    }
-    if (server?.port === port) {
-      server = undefined
-    }
-  })()
-}
-
-async function waitServing($: EngineInterface, url: string): Promise<boolean> {
-  for (let attempt = 0; attempt < 12; attempt++) {
-    await $.clock.sleep(150)
-    if (await isServing($, url)) {
-      return true
-    }
+/**
+ * Sends this session's exact skill list to the web app, in place of its own
+ * scan of Claude Code; true when it took it.
+ */
+async function sendSkills($: EngineInterface, url: string, current: Index): Promise<boolean> {
+  const data = buildWebData(current.skills, current.regions, current.graph, current.globe, new Date().toISOString())
+  // What the pane shows, for the web app's agent card and reader: measured, not estimated.
+  const measured = {
+    ...(stats ? { baseline: stats.baseline } : {}),
+    ...(stats?.listing ? { listing: { tokens: stats.listing.tokens, perSkill: stats.listing.perSkill } } : {}),
+    uses: Object.fromEntries(uses),
+    measuredAt: new Date().toISOString(),
   }
-  return false
+  const sent = await safe($, 'send the skill list to the web app', () =>
+    $.http.fetch(`${url}skills`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ agent: 'claude', data, stats: measured }),
+    }),
+  )
+
+  return sent?.ok === true
+}
+
+/** Gives the web app at `url` this session's skills and the events held for it. */
+async function feedWebApp($: EngineInterface, url: string): Promise<void> {
+  startIndexing($)
+  await indexing
+  await measure($)
+  if (index) {
+    await sendSkills($, url, index)
+  }
+  if (pending.length > 0 && (await post($, url, pending))) {
+    pending = []
+  }
 }
 
 /**
- * Serves `dir` on the first free port of WEB_PORTS with the Skillverse server
- * (node), which also relays live events. SKILLVERSE_LOG, when set, names a
- * file it appends each event to.
+ * Open web view: the web app's address when it runs (fed with this session's
+ * skills), else WEB_STOPPED when the skillverse command is installed, else
+ * WEB_MISSING. The plugin never serves the web view itself.
  */
-async function startServer($: EngineInterface, dir: string): Promise<{ port: number; url: string; isLive: boolean }> {
-  const log = await $.env.get('SKILLVERSE_LOG')
-  for (const port of WEB_PORTS) {
-    const url = `http://localhost:${port}/`
-    if (await isServing($, url)) {
-      continue
-    }
-    keepRunning(
-      $,
-      ['node', `${$.plugin.root}/server/skillverse-server.mjs`, '--dir', dir, '--port', String(port), ...(log ? ['--log', log] : [])],
-      port,
-    )
-    if (await waitServing($, url)) {
-      return { port, url, isLive: true }
-    }
+async function openWebApp($: EngineInterface): Promise<string> {
+  server = (await findServer($)) ?? undefined
+  if (server) {
+    await feedWebApp($, server.url)
+    return server.url
   }
+  const installed = await safe($, 'look for the skillverse command', () => $.process.run(['sh', '-c', 'command -v skillverse']))
 
-  throw new Error(`could not start the web view on ports ${WEB_PORTS.join(', ')}: is node on PATH?`)
+  return installed?.exitCode === 0 ? WEB_STOPPED : WEB_MISSING
 }
 
-/** Writes web/index.html and the current index as data.js to ~/.cache/skillverse, and serves them. */
-async function publishWeb($: EngineInterface): Promise<string> {
-  const current = index
-  if (!current) {
-    throw new Error('the skills are still being indexed')
+/** Start web view: `skillverse run` starts the web app in the background; resolves to its address. */
+async function startWebApp($: EngineInterface): Promise<string> {
+  const ports = await webPorts($)
+  const run = await $.process.run(['skillverse', 'run', ...(ports.length === 1 ? ['--port', String(ports[0])] : [])])
+  if (run.exitCode !== 0) {
+    throw new Error(run.stderr.trim() || `skillverse run exited with ${run.exitCode}`)
   }
-  const home = (await $.env.get('HOME')) ?? ''
-  const dir = `${home}/.cache/skillverse`
-  await $.process.run(['mkdir', '-p', dir])
-  const page = await $.fs.read(`${$.plugin.root}/web/index.html`)
-  const data = buildWebData(current.skills, current.regions, current.graph, current.globe, new Date().toISOString())
-  await $.fs.write(`${dir}/index.html`, page)
-  await $.fs.write(`${dir}/data.js`, `window.SKILLVERSE = ${JSON.stringify(data)}\n`)
-  // One Skillverse server for every session: reuse the one running, whoever started it.
-  server = server ?? (await findServer($)) ?? (await startServer($, dir))
-  if (server.isLive && pending.length > 0 && (await post($, server.url, pending))) {
-    pending = []
+  const url = await openWebApp($)
+  if (!url.startsWith('http')) {
+    throw new Error('skillverse run did not start the web app; see ~/.cache/skillverse/server.log')
   }
 
-  return server.url
+  return url
+}
+
+/**
+ * Runs Open web view or Start web view, showing its progress and outcome under
+ * the buttons; a running web app also opens in the browser.
+ */
+async function showWebApp($: EngineInterface, isStart = false): Promise<void> {
+  await update($, web, () => 'Looking for the web app…')
+  try {
+    const state = isStart ? await startWebApp($) : await openWebApp($)
+    await update($, web, () => state)
+    if (state.startsWith('http')) {
+      await openInBrowser($, state)
+    }
+  } catch (error) {
+    await update($, web, () => `Web view failed: ${describe(error)}`)
+  }
+}
+
+/** As a session starts: a web app already running gets this session's skills now, and its events as they happen. */
+async function feedOnStart($: EngineInterface): Promise<void> {
+  server = (await findServer($)) ?? undefined
+  if (server) {
+    await feedWebApp($, server.url)
+  }
 }
 
 const CATEGORY_ORDER = ['Plugins', 'Connectors (MCP)', 'Organization', 'Project skills', 'Your skills', 'Built-in']
@@ -549,6 +588,37 @@ function fitName(name: string, max: number): string {
 }
 
 /** Opens a URL in the default browser: `open` on macOS, `xdg-open` on Linux. */
+/**
+ * /skillverse-it: on the desktop app, asks Claude to start the terminal app in
+ * the Terminal panel (a plugin cannot open one itself); elsewhere, or when the
+ * prompt cannot be sent, prints the command to run.
+ */
+async function openTerminalApp($: EngineInterface): Promise<{ text: string }> {
+  const command = `node ${JSON.stringify(`${$.plugin.root}/tui/skillverse.mjs`)}`
+  const manual = [
+    'Run this in a terminal (Node 22.18 or newer) for the full-screen Skillverse:',
+    '',
+    `    ${command}`,
+    '',
+    'Or, with the npm package: npx @jonathanjuliani/skillverse',
+  ].join('\n')
+  const surfaces = (await safe($, 'read the session surfaces', () => $.session.surfaces())) ?? []
+  if (!surfaces.includes('desktop')) {
+    return { text: manual }
+  }
+  const asked = await safe($, 'ask Claude to open the Terminal panel', () =>
+    $.prompt.submit({
+      text: [
+        'Start the Skillverse terminal app for me in a new tab of the Terminal panel of this app.',
+        `It is a full-screen interactive program, so run it there with the run-in-terminal tool, not with Bash: ${command}`,
+        'Then link the tab. If you cannot open a terminal tab here, do not run it any other way: show me the command above to run myself.',
+      ].join('\n'),
+    }),
+  )
+
+  return { text: asked === undefined ? manual : 'Asking Claude to open Skillverse in the Terminal panel…' }
+}
+
 async function openInBrowser($: EngineInterface, url: string): Promise<void> {
   const system = (await safe($, 'detect the operating system', () => $.process.run(['uname', '-s'])))?.stdout.trim()
   const opened = await safe($, `open ${url}`, () => $.process.run([system === 'Darwin' ? 'open' : 'xdg-open', url]))
@@ -580,7 +650,14 @@ type Stats = {
   /** The context right now. */
   now: { tokens: number; window: number; percent: number; messages: number; rows: { name: string; tokens: number }[] }
   /** The skill listing's share of the baseline. */
-  listing?: { tokens: number; total: number; included: number; heaviest: { name: string; tokens: number }[] }
+  listing?: {
+    tokens: number
+    total: number
+    included: number
+    heaviest: { name: string; tokens: number }[]
+    /** Every listed skill's description cost, by skill id (sent to the web app). */
+    perSkill: Record<string, number>
+  }
   measuredAt: number
 }
 
@@ -612,6 +689,10 @@ function skillIdOf(name: string): string | undefined {
 }
 
 /** Measures the context now and what a fresh session would start with (the same minus the conversation). */
+/** A listed skill's id as the rest of Skillverse writes it: `plugin:name` for a plugin's. */
+const listedId = (skill: { name: string; pluginName?: string }) =>
+  skill.pluginName && !skill.name.includes(':') ? `${skill.pluginName}:${skill.name}` : skill.name
+
 async function measure($: EngineInterface): Promise<void> {
   if (measuring) return measuring
   measuring = (async () => {
@@ -650,10 +731,8 @@ async function measure($: EngineInterface): Promise<void> {
                 heaviest: [...listing.skillFrontmatter]
                   .sort((a, b) => b.tokens - a.tokens)
                   .slice(0, LISTING_ROWS)
-                  .map(skill => ({
-                    name: skill.pluginName && !skill.name.includes(':') ? `${skill.pluginName}:${skill.name}` : skill.name,
-                    tokens: skill.tokens,
-                  })),
+                  .map(skill => ({ name: listedId(skill), tokens: skill.tokens })),
+                perSkill: Object.fromEntries(listing.skillFrontmatter.map(skill => [listedId(skill), skill.tokens])),
               },
             }
           : {}),
@@ -698,15 +777,11 @@ async function loadUses($: EngineInterface): Promise<void> {
 
 export const register: Register = on => {
   on('session.start', async ($, e, next) => {
-    await $.command.register({
-      name: 'skillverse',
-      description: 'Browse every skill this session has: grouped tree, links, context cost, web view',
-    })
-    await $.command.register({
-      name: 'skillverse-terminal',
-      description: 'Show the command that opens Skillverse full screen in a terminal',
-    })
+    for (const [name, description] of COMMANDS) {
+      await $.command.register({ name, description })
+    }
     record($, { kind: 'turn', agent: 'main' })
+    void feedOnStart($)
 
     return next(e)
   })
@@ -755,26 +830,20 @@ export const register: Register = on => {
     return started
   })
 
-  on('command.run', { command: 'skillverse-terminal' }, async $ => {
-    const app = `${$.plugin.root}/tui/skillverse.mjs`
+  for (const command of ['skillverse-it', 'sv-it']) {
+    on('command.run', { command }, async $ => openTerminalApp($)).catch((_$, _e, next) => ({
+      text: `Skillverse could not open the terminal app (${failureOf(next.error)}). Run: npx @jonathanjuliani/skillverse`,
+    }))
+  }
 
-    return {
-      text: [
-        'Run this in any terminal (Node 22.18 or newer) for the animated full-screen Skillverse:',
-        '',
-        `    node ${JSON.stringify(app)}`,
-        '',
-        'Or, with the npm package: npx @jonathanjuliani/skillverse',
-      ].join('\n'),
-    }
-  })
+  for (const command of ['skillverse', 'sv']) {
+    on('command.run', { command }, async $ => {
+      startIndexing($)
+      await $.ui.open({ id: PANE_ID, title: 'Skillverse', focus: true })
 
-  on('command.run', { command: 'skillverse' }, async $ => {
-    startIndexing($)
-    await $.ui.open({ id: PANE_ID, title: 'Skillverse', focus: true })
-
-    return { text: 'Skillverse opened.' }
-  })
+      return { text: 'Skillverse opened.' }
+    }).catch((_$, _e, next) => ({ text: `Skillverse could not open its pane (${failureOf(next.error)}).` }))
+  }
 
   on('ui.render', { component: 'AbovePrompt' }, async ($, e, next) => {
     if (e.props.hasSurvey) {
@@ -868,19 +937,7 @@ export const register: Register = on => {
               await update($, indexedAt, n => n + 1)
             }}
           />
-          <Button
-            key="publish"
-            label="Open web view"
-            onPress={async () => {
-              await update($, web, () => 'Writing the web view…')
-              try {
-                const url = await publishWeb($)
-                await update($, web, () => url)
-              } catch (error) {
-                await update($, web, () => `Web view failed: ${error instanceof Error ? error.message : String(error)}`)
-              }
-            }}
-          />
+          <Button key="publish" label="Open web view" onPress={() => showWebApp($)} />
           {Input && (
             <Input
               key="find"
@@ -902,6 +959,17 @@ export const register: Register = on => {
             <Text dimColor>Web view:</Text>
             <Link key="web-link" href={webUrl} label={webState} />
             <Button key="web-open" label="Open in browser" onPress={() => openInBrowser($, webUrl)} />
+          </Box>
+        ) : webState === WEB_STOPPED ? (
+          <Box flexDirection="row" gap={1}>
+            <Text dimColor>The web app is installed but not running.</Text>
+            <Button key="web-start" label="Start web view" onPress={() => showWebApp($, true)} />
+          </Box>
+        ) : webState === WEB_MISSING ? (
+          <Box flexDirection="column">
+            <Text dimColor>The web view is a separate app. Install it, then click Open web view again:</Text>
+            <Text>{`  ${WEB_INSTALL}`}</Text>
+            <Text dimColor>Or in a clone of the repo: pnpm run dev.</Text>
           </Box>
         ) : (
           webState !== '' && <Text dimColor>{webState}</Text>

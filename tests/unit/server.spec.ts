@@ -25,10 +25,12 @@ function request(pathname: string, init: { method?: string; headers?: Record<str
 }
 
 beforeAll(async () => {
+  // An empty home: the scan finds no skills, which is all the security checks need.
   dir = fs.mkdtempSync(path.join(os.tmpdir(), 'skillverse-server-'))
-  fs.writeFileSync(path.join(dir, 'index.html'), '<p>ok</p>')
-  fs.writeFileSync(path.join(dir, 'data.js'), 'window.SKILLVERSE = {}')
-  server = spawn('node', ['server/skillverse-server.mjs', '--dir', dir, '--port', String(PORT)], { stdio: 'ignore' })
+  server = spawn('node', ['server/skillverse-server.mjs', '--port', String(PORT), '--project', dir], {
+    stdio: 'ignore',
+    env: { ...process.env, HOME: dir },
+  })
   for (let attempt = 0; attempt < 50; attempt++) {
     const ready = await request('/health', { headers: { host: `localhost:${PORT}` } }).catch(() => undefined)
     if (ready?.status === 200) return
@@ -70,7 +72,27 @@ describe('skillverse-server', () => {
     expect(headers['access-control-allow-origin']).toBeUndefined()
   })
 
-  it('never serves a file outside its folder', async () => {
+  it('never serves a file outside web/', async () => {
     expect((await request('/../../etc/passwd', { headers: local })).status).not.toBe(200)
+  })
+
+  it('keeps the stats a session sends with its skills, and ignores stats it does not know', async () => {
+    const skill = { id: 'docs', name: 'docs', region: 0, description: '', body: '', chars: 0, links: [], lat: 0, lon: 0, x: 0, y: 0 }
+    const region = { label: 'User', color: '#7aa2f7', count: 1, lat: 0, lon: 0, cap: 0.2, x: 0, y: 0 }
+    const data = { skills: [skill], regions: [region], generatedAt: '' }
+    const send = (stats: unknown) =>
+      request('/skills', {
+        method: 'POST',
+        headers: { ...local, 'content-type': 'application/json' },
+        body: JSON.stringify({ agent: 'claude', data, stats }),
+      })
+    const script = async () => {
+      const response = await fetch(`http://localhost:${PORT}/data.js`)
+      return response.text()
+    }
+    expect((await send({ listing: { tokens: 12, perSkill: { docs: 12 } }, uses: { docs: 2 } })).status).toBe(200)
+    expect(await script()).toContain('"stats":{"listing":{"tokens":12')
+    expect((await send({ evil: true })).status).toBe(200)
+    expect(await script()).not.toContain('evil')
   })
 })

@@ -1,0 +1,967 @@
+/* Skillverse web view. Dark only: the views draw on a night sky. Wide screens
+   float three cards over a full-bleed canvas; phones (760px and less) keep
+   the canvas whole and put the cards in one bottom sheet, one at a time. */
+
+:root {
+  --bg: #04060c;
+  --surface: rgba(11, 15, 26, 0.88);
+  --surface-solid: #0b0f1a;
+  --raised: #111827;
+  --line: #1f2937;
+  --text: #e5e7eb;
+  --muted: #8b95a7;
+  --accent: #7aa2f7;
+  --on-accent: #0b1020;
+  --live: #f43f5e;
+  --twin: #c4a7ff;
+  --radius: 8px;
+  --mono: ui-monospace, SFMono-Regular, Menlo, monospace;
+  --gap: 12px;
+  --bar: 52px;
+  --tabs: 48px;
+  font-family: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, sans-serif;
+  color-scheme: dark;
+}
+* {
+  box-sizing: border-box;
+}
+html,
+body {
+  margin: 0;
+  height: 100%;
+  background: var(--bg);
+  color: var(--text);
+  overflow: hidden;
+}
+button,
+input,
+select {
+  font: inherit;
+  color: inherit;
+}
+button {
+  cursor: pointer;
+}
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+[hidden] {
+  display: none !important;
+}
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+code {
+  font-size: 0.92em;
+}
+
+/* ---- Top bar ------------------------------------------------------------ */
+.bar {
+  position: fixed;
+  inset: 0 0 auto 0;
+  height: var(--bar);
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 var(--gap);
+  border-bottom: 1px solid var(--line);
+  background: linear-gradient(180deg, #0a0f1d, #05070e);
+}
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 650;
+  white-space: nowrap;
+}
+.logo {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  flex: none;
+  background: radial-gradient(circle at 35% 35%, #c7d6ff, var(--accent) 45%, #2c3f7a 75%);
+  box-shadow: 0 0 10px rgba(122, 162, 247, 0.6);
+}
+.segmented {
+  display: flex;
+  gap: 2px;
+  background: var(--raised);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 3px;
+  flex: none;
+}
+.segmented button {
+  border: 0;
+  background: transparent;
+  padding: 5px 12px;
+  border-radius: 999px;
+  color: var(--muted);
+  white-space: nowrap;
+}
+.segmented button[aria-pressed="true"] {
+  background: var(--accent);
+  color: var(--on-accent);
+  font-weight: 600;
+}
+.search {
+  margin-left: auto;
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+.search input {
+  width: 240px;
+  padding: 7px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: var(--raised);
+  outline: none;
+}
+.search input:focus {
+  border-color: var(--accent);
+}
+.search-count {
+  position: absolute;
+  right: 12px;
+  font-size: 12px;
+  color: var(--muted);
+  pointer-events: none;
+}
+.stats {
+  color: var(--muted);
+  font-size: 12px;
+  white-space: nowrap;
+}
+.icon {
+  border: 1px solid var(--line);
+  background: var(--raised);
+  border-radius: 999px;
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  flex: none;
+  padding: 0;
+}
+.search-toggle {
+  display: none;
+}
+
+/* ---- Stage -------------------------------------------------------------- */
+#stage {
+  position: fixed;
+  inset: var(--bar) 0 0 0;
+}
+.view {
+  position: absolute;
+  inset: 0;
+  display: none;
+}
+.view.active {
+  display: block;
+}
+#loading {
+  position: absolute;
+  inset: 0;
+  display: none;
+  place-items: center;
+  color: var(--muted);
+  font-size: 14px;
+  pointer-events: none;
+  padding: 24px;
+  text-align: center;
+}
+#loading.on {
+  display: grid;
+}
+/* Canvas actions sit with the canvas, bottom right: the hint and Fit. */
+.canvas-tools {
+  position: absolute;
+  right: var(--gap);
+  bottom: var(--gap);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+#hint {
+  font-size: 12px;
+  color: var(--muted);
+  pointer-events: none;
+}
+.canvas-tools button {
+  border: 1px solid var(--line);
+  background: var(--surface);
+  border-radius: var(--radius);
+  padding: 5px 12px;
+  font-size: 12px;
+}
+.canvas-tools .toggle[aria-pressed="true"] {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.canvas-tools .toggle[aria-pressed="false"] {
+  color: var(--muted);
+}
+.skip {
+  position: fixed;
+  left: var(--gap);
+  top: -48px;
+  z-index: 30;
+  background: var(--accent);
+  color: var(--on-accent);
+  padding: 8px 12px;
+  border-radius: var(--radius);
+  font-weight: 600;
+  text-decoration: none;
+}
+.skip:focus {
+  top: 8px;
+}
+.overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+.planet-name {
+  position: absolute;
+  transform: translate(-50%, 0);
+  white-space: nowrap;
+  font-size: 13px;
+  font-weight: 650;
+  color: var(--muted);
+  text-shadow: 0 0 6px rgba(0, 0, 0, 0.9);
+  letter-spacing: 0.03em;
+}
+.planet-name.is-centre {
+  color: #ffd98a;
+}
+.planet-name.is-followed {
+  color: var(--accent);
+}
+.orbit-tip {
+  position: absolute;
+  z-index: 3;
+  pointer-events: none;
+  font-size: 12px;
+  padding: 6px 8px;
+  border-radius: var(--radius);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  max-width: 280px;
+}
+.orbit-tip span {
+  color: var(--muted);
+}
+.fire-tag,
+.agent-tag {
+  position: absolute;
+  transform: translate(-50%, -100%);
+  white-space: nowrap;
+  text-shadow: 0 0 6px rgba(0, 0, 0, 0.9);
+}
+.fire-tag {
+  font-weight: 600;
+  font-size: 12px;
+  color: #fff;
+}
+.agent-tag {
+  font-weight: 700;
+  font-size: 15px;
+  color: rgba(229, 231, 235, 0.6);
+}
+.tip {
+  padding: 4px 6px;
+  font-size: 12px;
+}
+.tip span {
+  opacity: 0.7;
+}
+
+/* ---- Cards (wide screens) ----------------------------------------------- */
+/* Wide screens: Live and Groups stack at the bottom left, folded to a line
+   each by default, so the top of the canvas stays clear. The reader is fixed
+   on the right, out of this stack's flow. */
+#sheet {
+  position: fixed;
+  left: var(--gap);
+  bottom: var(--gap);
+  z-index: 10;
+  width: 320px;
+  max-height: calc(100vh - var(--bar) - var(--gap) * 2);
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  gap: 8px;
+  pointer-events: none;
+}
+.sheet-tabs {
+  display: none;
+}
+.card {
+  position: relative;
+  background: var(--surface);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+}
+/* The stack lets clicks through to the canvas; its cards take them. */
+#sheet > .card {
+  pointer-events: auto;
+}
+.card-head {
+  all: unset;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 12px;
+  cursor: pointer;
+  font-size: 13px;
+}
+.card-head:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+.card-title {
+  font-weight: 650;
+  letter-spacing: 0.03em;
+}
+.card-meta {
+  margin-left: auto;
+  color: var(--muted);
+  font-size: 12px;
+  white-space: nowrap;
+}
+.card-head::after {
+  content: "▾";
+  color: var(--muted);
+  font-size: 11px;
+  transition: transform 0.15s;
+}
+.card-head[aria-expanded="false"]::after {
+  transform: rotate(-90deg);
+}
+.collapsible .card-body {
+  border-top: 1px solid var(--line);
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+.collapsible.collapsed .card-body {
+  display: none;
+}
+
+#live {
+  max-height: 44vh;
+  flex: none;
+}
+#agents {
+  max-height: 36vh;
+  flex: none;
+}
+#reader {
+  position: fixed;
+  z-index: 10;
+  right: var(--gap);
+  top: calc(var(--bar) + var(--gap));
+  bottom: var(--gap);
+  width: 400px;
+  display: none;
+}
+body.has-selection #reader {
+  display: flex;
+}
+/* With the reader open the canvas is narrower: the hint gives way to the cards. */
+@media (max-width: 1280px) {
+  body.has-selection #hint {
+    display: none;
+  }
+}
+/* The reader takes its own column: the canvas shrinks beside it instead of hiding under it. */
+@media (min-width: 761px) {
+  body.has-selection #stage {
+    right: calc(400px + var(--gap) * 2);
+  }
+}
+
+.live-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #4b5563;
+  flex: none;
+  display: inline-block;
+}
+body.is-live .live-dot {
+  background: var(--live);
+  animation: pulse 1.6s infinite;
+}
+@keyframes pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(244, 63, 94, 0.6);
+  }
+  70% {
+    box-shadow: 0 0 0 8px rgba(244, 63, 94, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(244, 63, 94, 0);
+  }
+}
+
+.tools {
+  display: flex;
+  gap: 6px;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--line);
+  flex-wrap: wrap;
+}
+.tools button,
+.tools select {
+  border: 1px solid var(--line);
+  background: var(--raised);
+  border-radius: 8px;
+  padding: 4px 10px;
+  font-size: 12px;
+}
+.tools button[aria-pressed="true"] {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.tools select {
+  margin-left: auto;
+  max-width: 140px;
+}
+.feed {
+  list-style: none;
+  margin: 0;
+  padding: 4px 6px 8px;
+  overflow: auto;
+  font-size: 12px;
+  min-height: 0;
+}
+.ev {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px;
+  border-radius: 6px;
+  white-space: nowrap;
+}
+.ev .t {
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: 11px;
+}
+.ev .name {
+  all: unset;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: pointer;
+}
+.ev .name:hover,
+.ev .name:focus-visible {
+  text-decoration: underline;
+}
+.ev .from {
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.ev .session {
+  font-size: 10px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  flex: none;
+  color: var(--on-accent);
+  font-weight: 600;
+  max-width: 90px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.ev .subagent {
+  font-size: 10px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: #3b2a5c;
+  color: #d8c4ff;
+  flex: none;
+}
+.ev.turn {
+  color: var(--muted);
+  justify-content: center;
+  font-size: 11px;
+  white-space: normal;
+  text-align: center;
+}
+.ev.new {
+  animation: flash 1.2s ease-out;
+}
+@keyframes flash {
+  from {
+    background: rgba(122, 162, 247, 0.35);
+  }
+  to {
+    background: transparent;
+  }
+}
+
+#legend {
+  overflow: auto;
+  padding: 6px;
+  font-size: 12px;
+  min-height: 0;
+}
+.region-row {
+  all: unset;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 6px;
+  border-radius: 6px;
+  cursor: pointer;
+  width: 100%;
+}
+.region-row:hover,
+.region-row:focus-visible {
+  background: var(--raised);
+}
+.region-row .count {
+  margin-left: auto;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  flex: none;
+  display: inline-block;
+}
+
+/* ---- Agents card ---------------------------------------------------------- */
+.agent + .agent {
+  border-top: 1px solid var(--line);
+}
+.agent-row {
+  all: unset;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 8px 6px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.agent-row:hover,
+.agent-row:focus-visible {
+  background: var(--raised);
+}
+.agent-row::after {
+  content: "▸";
+  color: var(--muted);
+  font-size: 11px;
+}
+.agent.is-open .agent-row::after {
+  content: "▾";
+}
+.agent-name {
+  font-weight: 600;
+}
+.agent-row .count {
+  margin-left: auto;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.agent-details {
+  padding: 0 6px 10px;
+}
+.agent-details h5 {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  margin: 12px 0 6px;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+}
+.agent-details h5 .total {
+  color: var(--text);
+  text-transform: none;
+  letter-spacing: 0;
+  font-variant-numeric: tabular-nums;
+}
+.stat-row {
+  all: unset;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 3px 0;
+}
+button.stat-row {
+  cursor: pointer;
+  border-radius: 6px;
+}
+button.stat-row:hover,
+button.stat-row:focus-visible {
+  background: var(--raised);
+}
+.stat-row .label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+  min-width: 0;
+}
+.stat-row .value {
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.meter {
+  width: 64px;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--raised);
+  flex: none;
+  overflow: hidden;
+}
+.meter span {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+}
+.note {
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.45;
+  margin: 4px 0 6px;
+}
+/* The reader's cost of one skill. */
+.costs {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin: 12px 0 0;
+}
+.costs div {
+  background: var(--raised);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 6px 8px;
+}
+.costs dt {
+  font-size: 11px;
+  color: var(--muted);
+}
+.costs dd {
+  margin: 2px 0 0;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+/* ---- Reader ------------------------------------------------------------- */
+.reader-head {
+  padding: 14px 16px 12px;
+  border-bottom: 1px solid var(--line);
+}
+.reader-head:empty {
+  display: none;
+}
+.reader-title {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+.reader-title h2 {
+  margin: 0 0 8px;
+  font-size: 18px;
+  word-break: break-word;
+  flex: 1;
+}
+.reader-title .icon {
+  width: 28px;
+  height: 28px;
+  font-size: 12px;
+}
+.reader-body {
+  overflow: auto;
+  padding: 4px 16px 24px;
+  min-height: 0;
+  flex: 1;
+}
+.reader-body h4 {
+  margin: 16px 0 8px;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+}
+.reader-body h4 .count {
+  font-weight: 400;
+}
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.chip,
+.tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  padding: 3px 9px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: var(--raised);
+  max-width: 100%;
+}
+.chip span:last-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.tag {
+  color: var(--twin);
+  border-color: rgba(196, 167, 255, 0.35);
+}
+.desc {
+  margin: 10px 0 0;
+  font-size: 14px;
+  line-height: 1.45;
+}
+.path {
+  color: var(--muted);
+  font-size: 11px;
+  margin-top: 10px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+}
+.actions button {
+  border: 1px solid var(--line);
+  background: var(--raised);
+  border-radius: 8px;
+  padding: 6px 10px;
+  font-size: 13px;
+}
+.actions button.primary {
+  background: var(--accent);
+  color: var(--on-accent);
+  border-color: transparent;
+  font-weight: 600;
+}
+.empty {
+  color: var(--muted);
+  line-height: 1.5;
+  font-size: 13px;
+}
+.md {
+  font-size: 13.5px;
+  line-height: 1.55;
+  overflow-wrap: anywhere;
+}
+.md pre {
+  background: #070a12;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 10px;
+  overflow: auto;
+  white-space: pre-wrap;
+}
+.md code {
+  font-size: 12.5px;
+}
+.md table {
+  border-collapse: collapse;
+  font-size: 12.5px;
+  display: block;
+  overflow: auto;
+}
+.md th,
+.md td {
+  border: 1px solid var(--line);
+  padding: 4px 6px;
+}
+.md a {
+  color: var(--accent);
+}
+.scene-tooltip {
+  font-size: 12px !important;
+}
+
+/* ---- Phones: one bottom sheet ------------------------------------------- */
+@media (max-width: 760px) {
+  :root {
+    --bar: 52px;
+    --gap: 8px;
+  }
+  .brand-name,
+  .stats,
+  #hint {
+    display: none;
+  }
+  .segmented button {
+    padding: 5px 10px;
+  }
+  .search {
+    display: none;
+  }
+  .search-toggle {
+    display: grid;
+    margin-left: auto;
+  }
+  .bar.searching .search {
+    display: flex;
+    position: absolute;
+    inset: 8px var(--gap) 8px calc(var(--gap) + 34px + 8px);
+    margin: 0;
+  }
+  .bar.searching .search input {
+    width: 100%;
+  }
+  .bar.searching > :not(.search):not(.search-toggle) {
+    visibility: hidden;
+  }
+  .bar.searching .search-toggle {
+    position: absolute;
+    left: var(--gap);
+  }
+
+  #stage {
+    bottom: calc(var(--tabs) + env(safe-area-inset-bottom));
+  }
+
+  #sheet {
+    display: flex;
+    flex-direction: column;
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 15;
+    height: calc(var(--tabs) + env(safe-area-inset-bottom));
+    background: var(--surface-solid);
+    border-top: 1px solid var(--line);
+    border-radius: 14px 14px 0 0;
+    transition: height 0.2s ease;
+    padding-bottom: env(safe-area-inset-bottom);
+    width: auto;
+    max-height: none;
+    gap: 0;
+    justify-content: flex-start;
+    pointer-events: auto;
+  }
+  #sheet.open {
+    height: 58vh;
+  }
+  /* The canvas shrinks above an open sheet, so what is drawn stays whole. */
+  body.sheet-open #stage {
+    bottom: 58vh;
+  }
+  .sheet-tabs {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    height: var(--tabs);
+    padding: 0 8px;
+    flex: none;
+  }
+  .sheet-tabs [role="tab"] {
+    flex: 1;
+    border: 0;
+    background: transparent;
+    color: var(--muted);
+    padding: 10px 4px;
+    border-radius: 10px;
+    font-size: 14px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+  }
+  .sheet-tabs [role="tab"][aria-selected="true"] {
+    color: var(--text);
+    background: var(--raised);
+    font-weight: 600;
+  }
+  .sheet-toggle {
+    transition: transform 0.2s;
+  }
+  #sheet.open .sheet-toggle {
+    transform: rotate(180deg);
+  }
+
+  .card,
+  #reader,
+  body.has-selection #reader {
+    position: static;
+    display: none;
+    width: auto;
+    max-height: none;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    flex: 1;
+    border-top: 1px solid var(--line);
+  }
+  #sheet.open[data-tab="reader"] #reader,
+  #sheet.open[data-tab="live"] #live,
+  #sheet.open[data-tab="agents"] #agents {
+    display: flex;
+  }
+  .card-head {
+    display: none;
+  }
+  .collapsible .card-body,
+  .collapsible.collapsed .card-body {
+    display: flex;
+    border-top: 0;
+    flex: 1;
+  }
+  .feed {
+    flex: 1;
+    font-size: 13px;
+  }
+  .ev {
+    padding: 7px 4px;
+  }
+  .region-row {
+    padding: 10px 8px;
+    font-size: 14px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}

@@ -8,3 +8,6 @@ node_modules/
 *.log
 *.tgz
 .DS_Store
+
+# pnpm run dev: the debug log and Claude Code's "latest" link to it
+.dev/

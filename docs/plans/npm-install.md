@@ -1,6 +1,6 @@
 # Plan: install the whole plugin from npm
 
-Status: **planned, not started**. Target release: **0.2.0** (minor: a new install route, nothing removed).
+Status: **planned, not started; after 0.2**. 0.2 ships the web app in the npm package ([v0.2.md](v0.2.md)); this plan adds loading the plugin itself from npm.
 
 ## Goal
 
@@ -19,9 +19,9 @@ Then a new Claude Code session shows the Skillverse button. The marketplace rout
 |---|---|
 | Marketplace (`/plugin install skillverse@skillverse`) | The plugin: pane, web view, terminal app (`/skillverse-terminal`) |
 | Clone + `CLAUDE_CODE_PLUGIN_DIRS` | The same plugin, from a folder |
-| npm (`npx @jonathanjuliani/skillverse`) | **Only the terminal app** (`tui/`, ~17 kB) |
+| npm (`npm i -g @jonathanjuliani/skillverse`) | The terminal app and the web app (`skillverse run`); **not** the plugin |
 
-The npm package cannot give the pane or the web view: Claude Code loads plugins from a marketplace install or a plugin folder, and the package ships no plugin files.
+The npm package cannot give the pane: Claude Code loads plugins from a marketplace install or a plugin folder, and the package ships no plugin files.
 
 ## Design
 

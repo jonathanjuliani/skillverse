@@ -47,7 +47,7 @@ jobs:
       - name: Build and run the terminal app
         run: |
           pnpm run build
-          node tui/skillverse.mjs --scan --snapshot 100x30 --frames 5 --plain
+          node bin/skillverse.mjs --scan --snapshot 100x30 --frames 5 --plain
 
       - name: The npm package installs and runs
         run: |
@@ -55,3 +55,7 @@ jobs:
           mkdir /tmp/try && cd /tmp/try && npm init -y >/dev/null
           npm install /tmp/jonathanjuliani-skillverse-*.tgz
           ./node_modules/.bin/skillverse --scan --snapshot 80x20 --frames 2 --plain
+          ./node_modules/.bin/skillverse run --port 4390
+          curl -fsS http://localhost:4390/health
+          curl -fsS http://localhost:4390/data.js | head -c 80
+          ./node_modules/.bin/skillverse stop

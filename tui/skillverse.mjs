@@ -15,103 +15,11 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 
-// The shared modules: prebuilt JavaScript in tui/lib when published (npm),
-// else the plugin's TypeScript sources (Node 22.18+ runs those directly).
-const load = async name => {
-  try {
-    return await import(`./lib/${name}.js`)
-  } catch {
-    return import(`../hooks/${name}.ts`)
-  }
-}
-const { layoutGlobe, layoutGraph } = await load('layout')
-const { assignRegions, linkSkills, parseSkillFile } = await load('skills')
-const { buildWebData } = await load('web')
+import { scanSkills } from '../cli/scan.mjs'
 
 // ---- data ---------------------------------------------------------------
 
 const CACHE = path.join(os.homedir(), '.cache', 'skillverse', 'skillverse.json')
-
-function scanSkills(cwd) {
-  const home = os.homedir()
-  const found = new Map()
-  const add = (id, name, plugin, source, file) => {
-    if (found.has(id)) return
-    let text
-    try {
-      text = fs.readFileSync(file, 'utf8')
-    } catch {
-      return
-    }
-    const { meta, body } = parseSkillFile(text)
-    found.set(id, {
-      id,
-      name,
-      ...(plugin ? { plugin } : {}),
-      source,
-      region: '',
-      description: meta.description ?? '',
-      path: file,
-      body,
-      links: [],
-    })
-  }
-  const scan = (root, source, plugin, depth = 0) => {
-    let entries = []
-    try {
-      entries = fs.readdirSync(root, { withFileTypes: true })
-    } catch {
-      return
-    }
-    for (const entry of entries) {
-      if (entry.name.startsWith('.') || entry.isFile()) continue
-      const file = path.join(root, entry.name, 'SKILL.md')
-      if (fs.existsSync(file)) add(plugin ? `${plugin}:${entry.name}` : entry.name, entry.name, plugin, source, file)
-      else if (depth === 0) scan(path.join(root, entry.name), source, plugin, 1)
-    }
-  }
-  const readJson = file => {
-    try {
-      return JSON.parse(fs.readFileSync(file, 'utf8'))
-    } catch {
-      return undefined
-    }
-  }
-
-  scan(path.join(cwd, '.claude', 'skills'), 'projectSettings')
-  scan(path.join(home, '.claude', 'skills'), 'userSettings')
-  const enabled = new Set()
-  for (const file of [
-    path.join(home, '.claude', 'settings.json'),
-    path.join(cwd, '.claude', 'settings.json'),
-    path.join(cwd, '.claude', 'settings.local.json'),
-  ]) {
-    for (const [key, isOn] of Object.entries(readJson(file)?.enabledPlugins ?? {})) if (isOn) enabled.add(key)
-  }
-  const installed = readJson(path.join(home, '.claude', 'plugins', 'installed_plugins.json'))?.plugins ?? {}
-  for (const key of enabled) {
-    const name = key.split('@')[0]
-    const dir = installed[key]?.[0]?.installPath
-    if (!dir) continue
-    const manifest = readJson(path.join(dir, '.claude-plugin', 'plugin.json'))
-    const declared = typeof manifest?.skills === 'string' ? [manifest.skills] : Array.isArray(manifest?.skills) ? manifest.skills : []
-    for (const rel of declared) {
-      const folder = path.join(dir, rel).replace(/\/SKILL\.md$/, '')
-      if (fs.existsSync(path.join(folder, 'SKILL.md')))
-        add(`${name}:${path.basename(folder)}`, path.basename(folder), name, 'plugin', path.join(folder, 'SKILL.md'))
-      else scan(folder, 'plugin', name)
-    }
-    scan(path.join(dir, 'skills'), 'plugin', name)
-  }
-
-  const skills = [...found.values()]
-  assignRegions(skills)
-  linkSkills(skills)
-  skills.sort((a, b) => a.id.localeCompare(b.id))
-  const { regions, graph } = layoutGraph(skills)
-
-  return buildWebData(skills, regions, graph, layoutGlobe(skills, regions), new Date().toISOString())
-}
 
 function loadData(args) {
   if (!args.has('--scan')) {

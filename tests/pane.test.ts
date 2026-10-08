@@ -49,3 +49,31 @@ test('the Skillverse pane is the tree with search, the web view and sized headin
     await ui.unmount()
   }
 })
+
+test('/skillverse-it and /sv-it print the terminal app command outside the desktop app', async $ => {
+  for (const command of ['skillverse-it', 'sv-it']) {
+    // The kit's $.command.run takes the engine's full input; origin and presentation are the engine's to fill.
+    const run = await $.command.run({ command, args: '' } as Parameters<typeof $.command.run>[0])
+    expect(run?.text).toMatch(/tui\/skillverse\.mjs/)
+  }
+})
+
+test('Open web view says how to install the web app when it cannot find it', async ($, on) => {
+  // No environment variables are set (SKILLVERSE_PORT among them).
+  on('env.get', () => ({ value: undefined }))
+  for (const surface of ['terminal', 'desktop'] as const) {
+    const ui = await $.ui.mount({
+      plugin: 'skillverse',
+      surface,
+      component: 'Pane',
+      requestId: 'skillverse',
+      props: { title: 'Skillverse', isFocused: false, bodyColumns: 100, ...SITE },
+    })
+    await ui.redraw()
+    // The kit has no network or processes: no web app answers and no skillverse command is found.
+    await ui.press({ key: 'publish' })
+    await ui.redraw()
+    expect(await ui.find({ type: 'Text', text: /npm install -g @jonathanjuliani\/skillverse/ })).toBeDefined()
+    await ui.unmount()
+  }
+})
