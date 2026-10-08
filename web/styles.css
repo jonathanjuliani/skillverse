@@ -47,6 +47,7 @@ button {
   outline-offset: 2px;
 }
 [hidden] {
+  /* biome-ignore lint/complexity/noImportantStyles: [hidden] must win over any class that sets display */
   display: none !important;
 }
 .sr-only {
@@ -809,9 +810,6 @@ button.stat-row:focus-visible {
 .md a {
   color: var(--accent);
 }
-.scene-tooltip {
-  font-size: 12px !important;
-}
 
 /* ---- Phones: one bottom sheet ------------------------------------------- */
 @media (max-width: 760px) {
@@ -961,7 +959,9 @@ button.stat-row:focus-visible {
   *,
   *::before,
   *::after {
+    /* biome-ignore lint/complexity/noImportantStyles: reduced motion must win over every component's animation */
     animation: none !important;
+    /* biome-ignore lint/complexity/noImportantStyles: reduced motion must win over every component's transition */
     transition: none !important;
   }
 }
