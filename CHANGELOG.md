@@ -6,6 +6,10 @@ Add each change under **Unreleased** as you make it; `pnpm version` moves them u
 
 ## [Unreleased]
 
+### Fixed
+
+- CI gives the runner one skill to scan, so the terminal smoke test runs on a fresh checkout.
+
 ## [0.2.2] - 2026-10-08
 
 ### Fixed

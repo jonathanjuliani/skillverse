@@ -47,6 +47,12 @@ jobs:
         run: |
           if [ -d .claude-plugin/types ]; then pnpm run typecheck; else pnpm exec tsc -p tsconfig.test.json; fi
 
+      # A clean runner has no skills anywhere: give the scan one to draw.
+      - name: A skill to scan
+        run: |
+          mkdir -p ~/.claude/skills/demo
+          printf -- '---\nname: demo\ndescription: A sample skill for the smoke tests\n---\nSee demo-notes.\n' > ~/.claude/skills/demo/SKILL.md
+
       - name: Build and run the terminal app
         run: |
           pnpm run build
