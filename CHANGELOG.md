@@ -6,6 +6,8 @@ Add each change under **Unreleased** as you make it; `pnpm version` moves them u
 
 ## [Unreleased]
 
+## [0.2.1] - 2026-10-08
+
 ### Added
 
 - Document `skilldeck install skillverse`: the Skillverse plugin when none is installed, and the web app when it is missing. The direct marketplace and npm routes stay.
@@ -73,6 +75,7 @@ First release. Requires Claude Code 2.1.288 or newer (the function-hooks plugin 
 - The web view server listens on `127.0.0.1` only, answers only requests addressed to `localhost`/`127.0.0.1` (no DNS rebinding), and grants no cross-origin access.
 - Nothing leaves the machine except the web view's requests for its graph libraries (jsDelivr, pinned versions).
 
-[Unreleased]: https://github.com/jonathanjuliani/skillverse/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/jonathanjuliani/skillverse/compare/v0.2.1...HEAD
+[0.2.1]: https://github.com/jonathanjuliani/skillverse/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/jonathanjuliani/skillverse/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/jonathanjuliani/skillverse/releases/tag/v0.1.0
