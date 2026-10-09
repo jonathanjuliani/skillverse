@@ -14,6 +14,7 @@ Add each change under **Unreleased** as you make it; `pnpm version` moves them u
 
 ### Changed
 
+- Install no longer goes through the hub. The plugin is `skillverse@skillverse` from this repository. The web app is `npm i -g @jonathanjuliani/skillverse`. `npx skills add jonathanjuliani/skillverse` waits until this repo has a skill.
 - The 3D graph's skills are bigger and further apart within each agent's cluster.
 
 ## [0.2.4] - 2026-10-09
@@ -34,7 +35,7 @@ Add each change under **Unreleased** as you make it; `pnpm version` moves them u
 
 ### Added
 
-- Document `skilldeck install skillverse`: the Skillverse plugin when none is installed, and the web app when it is missing. The direct marketplace and npm routes stay.
+- Document the combined install: the Skillverse plugin when none is installed, and the web app when it is missing. The direct marketplace and npm routes stay.
 - The web app finds more agents: Gemini CLI, GitHub Copilot, opencode and Windsurf, beside Claude Code, Codex, Cursor and `~/.agents`. Every installed agent is a planet, even with nothing found in it.
 - Each planet is split into **Plugins**, **Your skills**, **Built-in** and **Connectors (MCP)**, each its own colour, with a region per plugin or group inside. Codex's and Cursor's plugins, built-ins and connectors are read from their folders; shared skills are grouped by the repo they were installed from.
 - Claude Code's plugins synced from a claude.ai organization (`~/.claude/plugins/synced/`) show under **Organization**, one group per plugin, when the folder exists.

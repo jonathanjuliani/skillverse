@@ -1,0 +1,23 @@
+name: Bug or change
+description: Something broke, or a change to the pane, the web app, or the CLI.
+title: ""
+labels: []
+body:
+  - type: dropdown
+    id: surface
+    attributes:
+      label: Surface
+      description: Where it shows up.
+      options:
+        - Pane
+        - Web app
+        - CLI
+    validations:
+      required: true
+  - type: textarea
+    id: broke
+    attributes:
+      label: What broke
+      description: What you did, what you expected, and what happened.
+    validations:
+      required: true

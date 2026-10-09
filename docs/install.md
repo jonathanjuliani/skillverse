@@ -26,14 +26,7 @@ From the marketplace:
 /plugin install skillverse@skillverse
 ```
 
-Or the plugin and the web app together. This installs `skillverse@skilldeck` when no Skillverse plugin is already installed, and installs `@jonathanjuliani/skillverse` when the web app is missing. It does not start the server.
-
-```bash
-npm i -g @jonathanjuliani/skilldeck
-skilldeck install skillverse
-```
-
-The direct routes stay: `skillverse@skillverse` for the plugin, and `npm i -g @jonathanjuliani/skillverse` for the web app. Use one plugin route per machine.
+`npx skills add jonathanjuliani/skillverse` does not install this repo yet. It waits until this repo has a skill.
 
 Start a new session. The Skillverse button appears above the prompt.
 

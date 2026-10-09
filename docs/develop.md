@@ -42,6 +42,8 @@ pnpm run build && pnpm run snapshot   # the terminal app, one frame
 
 ## Releasing
 
+A release tags `main`, publishes the npm package, and opens a GitHub Release.
+
 The version lives in three files (`package.json`, `.claude-plugin/plugin.json`, `.claude-plugin/marketplace.json`) and moves together:
 
 1. Add each change under `## [Unreleased]` in [CHANGELOG.md](../CHANGELOG.md) as you make it.
