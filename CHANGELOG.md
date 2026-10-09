@@ -6,6 +6,8 @@ Add each change under **Unreleased** as you make it; `pnpm version` moves them u
 
 ## [Unreleased]
 
+## [0.3.1] - 2026-10-09
+
 ### Fixed
 
 - The repo root (which is the plugin) no longer has a `bin/` folder: claude.ai refuses a plugin with one, which can make the desktop app's marketplace sync fail. The `skillverse` command moved to `cli/skillverse.mjs`; it is still `skillverse` once installed. If you ran `skillverse setup` before, run it again for each agent so its hooks point to the new file.
@@ -117,7 +119,8 @@ First release. Requires Claude Code 2.1.288 or newer (the function-hooks plugin 
 - The web view server listens on `127.0.0.1` only, answers only requests addressed to `localhost`/`127.0.0.1` (no DNS rebinding), and grants no cross-origin access.
 - Nothing leaves the machine except the web view's requests for its graph libraries (jsDelivr, pinned versions).
 
-[Unreleased]: https://github.com/jonathanjuliani/skillverse/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/jonathanjuliani/skillverse/compare/v0.3.1...HEAD
+[0.3.1]: https://github.com/jonathanjuliani/skillverse/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/jonathanjuliani/skillverse/compare/v0.2.4...v0.3.0
 [0.2.4]: https://github.com/jonathanjuliani/skillverse/compare/v0.2.3...v0.2.4
 [0.2.3]: https://github.com/jonathanjuliani/skillverse/compare/v0.2.2...v0.2.3

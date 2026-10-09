@@ -1,6 +1,6 @@
 {
   "name": "skillverse",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "See every skill your Claude Code session has: a tree grouped by plugin, the links between skills, what they cost in context, how often you used them, and an interactive 3D web view.",
   "author": {
     "name": "Jonathan Juliani",
