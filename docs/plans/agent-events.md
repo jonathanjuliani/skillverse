@@ -1,6 +1,6 @@
 # Plan: live events from every agent
 
-Status: **in progress** (branch `feat/agent-events`). First of three: this one, then [agent-adapters.md](agent-adapters.md), then [agent-views.md](agent-views.md).
+Status: **built; a real Cursor session still to try** (branch `feat/agent-events`). First of three: this one, then [agent-adapters.md](agent-adapters.md), then [agent-views.md](agent-views.md).
 
 ## Goal
 

@@ -7,7 +7,7 @@ Shared vocabulary for Skillverse. Code, docs and the UI use these words this way
 - **Skill**: one entry Claude Code can load, from a `SKILL.md`. Its **id** is `plugin:name` for a plugin's skill and `name` otherwise.
 - **Session listing**: the skills the session lists for the model, as `/context` counts them. Skillverse's source of truth for which skills exist.
 - **Link**: a skill naming another in its text (a full `plugin:name`, a `/name`, or a hyphenated name). Inferred, not declared. **Links to** are the ones it names; **linked from** are the ones that name it.
-- **Agent**: an AI coding tool whose skills the web app shows: Claude Code, Codex, Cursor, Gemini CLI, GitHub Copilot, opencode, Windsurf, and **Shared** (`~/.agents/skills`, read by several). Each installed one is a planet (`cli/agents.mjs`). In the web app, ids of every agent but Claude Code carry its prefix (`codex/docs`).
+- **Agent**: an AI coding tool whose skills the web app shows: Claude Code, Codex, Cursor, Gemini CLI, GitHub Copilot, opencode, Windsurf, Devin, Antigravity, and **Shared** (`~/.agents/skills`, read by several). Each installed one is a planet (`cli/agents.mjs`). In the web app, ids of every agent but Claude Code carry its prefix (`codex/docs`).
 - **Twin**: the same skill (same name) installed for another agent; shown as **Also installed for** and as a faint link across agents.
 
 ## Grouping

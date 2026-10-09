@@ -7,7 +7,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 // @ts-expect-error: a plain ES module without types (cli/ is JavaScript)
 import { sendHook } from '../../cli/hook.mjs'
 // @ts-expect-error: a plain ES module without types (cli/ is JavaScript)
-import { skillFileIn, slashSkill, toEvents } from '../../cli/hook-events.mjs'
+import { promptSkill, skillFileIn, toEvents } from '../../cli/hook-events.mjs'
 // @ts-expect-error: a plain ES module without types (cli/ is JavaScript)
 import { health } from '../../cli/server.mjs'
 // @ts-expect-error: a plain ES module without types (cli/ is JavaScript)
@@ -60,11 +60,87 @@ describe('toEvents', () => {
   })
 
   it('tells a /skill from a path or plain text', () => {
-    expect(slashSkill('/team:deploy now')).toBe('team:deploy')
-    expect(slashSkill('/Users/me/file.ts is broken')).toBeUndefined()
-    expect(slashSkill('please /review')).toBeUndefined()
+    expect(promptSkill('/team:deploy now')).toBe('team:deploy')
+    expect(promptSkill('/Users/me/file.ts is broken')).toBeUndefined()
+    expect(promptSkill('please /review')).toBeUndefined()
+    expect(promptSkill('$HOME is wrong')).toBeUndefined()
+    expect(promptSkill('$review it', '$/')).toBe('review')
     expect(skillFileIn({ paths: ['C:\\agents\\skills\\ship\\SKILL.md'] })).toBe('ship')
     expect(skillFileIn('/Users/me/.cursor/skills-cursor/create-skill/SKILL.md')).toBe('create-skill')
+    expect(skillFileIn("sed -n '1,200p' /Users/me/.codex/skills/.system/imagegen/SKILL.md")).toBe('imagegen')
+  })
+})
+
+// What each agent's docs say its hooks receive, trimmed to the fields read.
+describe('toEvents, per agent', () => {
+  const skill = (name: string, source: string, session: string, project?: string) => ({
+    kind: 'skill',
+    skill: name,
+    session,
+    ...(project ? { project } : {}),
+    source,
+  })
+
+  it('Codex: a $skill prompt, and a SKILL.md its shell reads', () => {
+    const base = { session_id: 'c-1', cwd: '/w/app', turn_id: 't-1', model: 'gpt' }
+    expect(toEvents('codex', { ...base, hook_event_name: 'UserPromptSubmit', prompt: '$review now' })).toContainEqual(
+      skill('review', 'codex', 'c-1', 'app'),
+    )
+    const read = {
+      ...base,
+      hook_event_name: 'PostToolUse',
+      tool_name: 'Bash',
+      tool_input: { command: 'cat ~/.agents/skills/ship/SKILL.md' },
+    }
+    expect(toEvents('codex', read)).toEqual([skill('ship', 'codex', 'c-1', 'app')])
+  })
+
+  it('Devin: its skill tool, and the project from DEVIN_PROJECT_DIR (it sends no cwd)', () => {
+    const input = { hook_event_name: 'PostToolUse', session_id: 'd-1', tool_name: 'skill', tool_input: { name: 'review' } }
+    expect(toEvents('devin', input, { env: { DEVIN_PROJECT_DIR: '/w/api' } })).toEqual([skill('review', 'devin', 'd-1', 'api')])
+  })
+
+  it('Copilot and VS Code: a SKILL.md read through Claude Code event names', () => {
+    const input = {
+      hook_event_name: 'PostToolUse',
+      session_id: 'p-1',
+      cwd: '/w/web',
+      tool_name: 'view',
+      tool_input: { path: '/Users/me/.copilot/skills/docs/SKILL.md' },
+    }
+    expect(toEvents('copilot', input)).toEqual([skill('docs', 'copilot', 'p-1', 'web')])
+  })
+
+  it("Gemini CLI: BeforeAgent's prompt, and activate_skill", () => {
+    const base = { session_id: 'g-1', cwd: '/w/cli', timestamp: '' }
+    expect(toEvents('gemini', { ...base, hook_event_name: 'BeforeAgent', prompt: 'fix it' })).toEqual([
+      { kind: 'turn', session: 'g-1', project: 'cli', source: 'gemini' },
+    ])
+    expect(
+      toEvents('gemini', { ...base, hook_event_name: 'AfterTool', tool_name: 'activate_skill', tool_input: { name: 'review' } }),
+    ).toEqual([skill('review', 'gemini', 'g-1', 'cli')])
+  })
+
+  it("Windsurf: an @skill prompt and a SKILL.md read; the project is the hook's folder", () => {
+    const base = { trajectory_id: 'w-1', execution_id: 'e-1' }
+    const prompt = { ...base, agent_action_name: 'pre_user_prompt', tool_info: { user_prompt: '@deploy to staging' } }
+    expect(toEvents('windsurf', prompt, { cwd: '/w/site' })).toContainEqual(skill('deploy', 'windsurf', 'w-1', 'site'))
+    const read = { ...base, agent_action_name: 'post_read_code', tool_info: { file_path: '/w/site/.windsurf/skills/ship/SKILL.md' } }
+    expect(toEvents('windsurf', read, { cwd: '/w/site' })).toEqual([skill('ship', 'windsurf', 'w-1', 'site')])
+  })
+
+  it('Antigravity: a skill file view_file reads', () => {
+    const input = {
+      conversationId: 'a-1',
+      workspacePaths: ['/w/mobile'],
+      toolCall: { name: 'view_file', args: { AbsolutePath: '/Users/me/.gemini/config/skills/review/SKILL.md', IsSkillFile: true } },
+    }
+    expect(toEvents('antigravity', input)).toEqual([skill('review', 'antigravity', 'a-1', 'mobile')])
+  })
+
+  it("opencode: its skill tool, as Skillverse's plugin passes it on", () => {
+    const input = { tool: 'skill', args: { name: 'git-release' }, session: 'o-1', directory: '/w/tool' }
+    expect(toEvents('opencode', input)).toEqual([skill('git-release', 'opencode', 'o-1', 'tool')])
   })
 })
 
@@ -166,8 +242,42 @@ describe('setup', () => {
 
   it('refuses a hooks.json that is not JSON, and an agent it does not know', () => {
     fs.writeFileSync(file(), '{ broken')
-    expect(() => planSetup('cursor', { home, command })).toThrow(/not valid JSON/)
+    expect(() => planSetup('cursor', { home, command })).toThrow(/not plain JSON/)
     expect(() => planSetup('nobody', { home, command })).toThrow(/knows cursor/)
+  })
+
+  it("writes each agent's own shape, and undo leaves the file as it was", () => {
+    // biome-ignore lint/suspicious/noExplicitAny: each agent's file has its own shape
+    const shapes: Record<string, (config: any) => unknown> = {
+      codex: config => config.hooks.PostToolUse[0].hooks[0].command,
+      devin: config => config.hooks.UserPromptSubmit[0].hooks[0].command,
+      gemini: config => config.hooks.AfterTool[0].hooks[0].command,
+      windsurf: config => config.hooks.post_read_code[0].command,
+      antigravity: config => config.skillverse.PostToolUse[0].hooks[0].command,
+    }
+    for (const [agent, read] of Object.entries(shapes)) {
+      const own = { model: 'theirs', hooks: { Stop: [{ command: 'mine' }] } }
+      const plan0 = planSetup(agent, { home, command: 'x' })
+      fs.mkdirSync(path.dirname(plan0.file), { recursive: true })
+      fs.writeFileSync(plan0.file, JSON.stringify(own))
+      const ours = hookCommand(agent, '/usr/bin/node', '/opt/skillverse/bin/skillverse.mjs')
+      const added = planSetup(agent, { home, command: ours })
+      expect(read(JSON.parse(added.after))).toBe(ours)
+      expect(JSON.parse(added.after).model).toBe('theirs')
+      write(added)
+      expect(JSON.parse(planSetup(agent, { home, isUndo: true, command: ours }).after)).toEqual(own)
+    }
+  })
+
+  it("writes Copilot's and opencode's files whole, and undo removes them", () => {
+    const copilot = planSetup('vscode', { home, command })
+    expect(copilot.file).toBe(path.join(home, '.copilot', 'hooks', 'skillverse.json'))
+    expect(JSON.parse(copilot.after).hooks.PostToolUse[0]).toMatchObject({ bash: command, command })
+    write(copilot)
+    expect(planSetup('copilot', { home, isUndo: true }).after).toBeNull()
+    const opencode = planSetup('opencode', { home, hookModule: '/opt/skillverse/cli/hook.mjs' })
+    expect(opencode.after).toContain('"/opt/skillverse/cli/hook.mjs"')
+    expect(opencode.after).toContain("'tool.execute.before'")
   })
 
   it('knows the npx cache', () => {

@@ -1,6 +1,6 @@
 # Plan: an adapter for each agent
 
-Status: **planned**; starts when [agent-events.md](agent-events.md) is done. Second of three.
+Status: **built; each agent still to be tried for real** (branch `feat/agent-events`). Second of three.
 
 ## Goal
 
@@ -8,46 +8,28 @@ Status: **planned**; starts when [agent-events.md](agent-events.md) is done. Sec
 
 ## The agents
 
-| Agent | Surfaces | Hooks | Config Skillverse writes | Mapper | Notes |
-|---|---|---|---|---|---|
-| Claude Code | CLI, desktop, IDE | The plugin | None: the plugin sends events | n/a | Done |
-| Cursor | IDE, CLI (`agent`) | `hooks.json` | `~/.cursor/hooks.json` | `cursor` | Done in [agent-events.md](agent-events.md); the CLI reads the same file |
-| Devin | CLI, cloud | `hooks.v1.json`, Claude Code compatible | `~/.config/devin/hooks.v1.json` | `claude-format` | Check the user-level file name |
-| GitHub Copilot | CLI, VS Code | Hooks in both | Copilot CLI's user config; VS Code below | to check | Its payload may follow Claude Code's |
-| VS Code | IDE | Agent hooks (preview) | User-level hooks file | to check | The schema depends on the agent harness picked in chat |
-| Codex | CLI, desktop, VS Code | Hooks; plugins can bundle them | `~/.codex/config.toml` or a Codex plugin | `codex` | TOML: merge with care, or ship a plugin instead |
-| Gemini CLI | CLI | Hooks, also inside extensions (experimental) | A Gemini extension with `hooks/hooks.json` | `gemini` | An extension keeps `settings.json` untouched |
-| Windsurf | IDE | Cascade hooks, 12 events | `~/.codeium/windsurf/hooks.json` (check) | `windsurf` | `pre_read_code` can spot a `SKILL.md` read |
-| opencode | TUI, desktop | JS plugins; an SSE stream (`/event`) | `~/.config/opencode/plugin/skillverse.js` | in the plugin | A plugin is JS, so it can post events itself |
-| Antigravity | IDE, CLI | Docs list Hooks, Plugins, Skills | to find out | to find out | Research spike first |
+What each agent's docs say, as built. "Inferred" marks what the docs leave out and a real session must confirm.
 
-"To check" means the docs found so far do not show it; each adapter starts by reading the tool's current docs and recording one real payload into `tests/fixtures/hooks/<agent>/`.
+| Agent | Surfaces | Skillverse writes | Hooks used | Payload | A skill shows when | Notes |
+|---|---|---|---|---|---|---|
+| Claude Code | CLI, desktop, IDE | Nothing: the plugin sends events | n/a | n/a | Its `Skill` tool | Done before this plan |
+| Cursor | IDE, CLI | `~/.cursor/hooks.json` (merged) | `beforeSubmitPrompt`, `postToolUse` | Its own (`conversation_id`, `workspace_roots`) | `/name`; a `SKILL.md` read | Done in [agent-events.md](agent-events.md) |
+| Codex | CLI, app, VS Code | `~/.codex/hooks.json` (merged) | `UserPromptSubmit`, `PostToolUse` | Claude Code's, plus `turn_id` | `$name` or `/name`; a `SKILL.md` read in a shell command (inferred: it has no skill tool) | Each hook must be trusted once with `/hooks` |
+| Devin | CLI | `~/.config/devin/config.json` `hooks` (merged) | `UserPromptSubmit`, `PostToolUse` | Claude Code's, no `cwd` (`DEVIN_PROJECT_DIR`) | `/name` (inferred); its `skill` tool (input field inferred: `skill` or `name`); a `SKILL.md` read | Devin also runs the hooks in `~/.claude/settings.json`, so Skillverse never writes there |
+| GitHub Copilot | CLI, VS Code | `~/.copilot/hooks/skillverse.json` (its own) | `UserPromptSubmit`, `PostToolUse` (Claude Code's names, so Claude Code's fields) | Claude Code's | `/name` (inferred); a `SKILL.md` read | One file serves the CLI and VS Code's agent hooks; both count as Copilot |
+| Gemini CLI | CLI | `~/.gemini/settings.json` `hooks` (merged) | `BeforeAgent`, `AfterTool` | Claude Code's field names | `activate_skill`'s `name` | The hook answers `{}` |
+| Windsurf | IDE | `~/.codeium/windsurf/hooks.json` (merged) | `pre_user_prompt`, `post_read_code` | Its own (`trajectory_id`, `tool_info`) | `@name` (inferred); a `SKILL.md` read (inferred) | No cwd in the payload: the hook runs in the workspace |
+| Antigravity | App, IDE, CLI | `~/.gemini/config/hooks.json` group `skillverse` (merged) | `PostToolUse` | camelCase (`conversationId`, `toolCall`) | A `view_file` of a `SKILL.md` | No prompt hook, so no `/name` and no turns. The hook answers `{}` |
+| opencode | TUI, desktop | `~/.config/opencode/plugins/skillverse.js` (its own) | `tool.execute.before` | What the plugin passes on | Its `skill` tool's `name`; a `SKILL.md` read | A JS plugin, not a shell hook; no turns (no documented prompt hook) |
 
-## Per agent, the same steps
+Devin and Antigravity are new planets (`cli/agents.mjs`), so their events have skills to match. A skill read from `~/.agents/skills` matches on the Shared planet. A name that matches nothing is left out of the feed for every agent but Claude Code, since the others' hooks guess.
 
-1. Read the current docs; save one real payload for each hook used.
-2. Map it (`cli/hook-events.mjs`), with a unit test on the saved payloads.
-3. Add it to `skillverse setup`: where its config lives, which hooks are not permission hooks, how its file merges.
-4. Try it for real: a typed `/skill` and a skill the agent loads on its own.
-5. README's agents table: a "Live" column, and how to turn it on.
+## Left to do
 
-## Order
-
-| # | Agent | Why then |
-|---|---|---|
-| 1 | Devin, Copilot CLI | Close to Claude Code's format: mostly config |
-| 2 | VS Code | Same file reaches Copilot in VS Code |
-| 3 | Codex | Many users; TOML or a plugin |
-| 4 | Gemini CLI | An extension, so its own package layout |
-| 5 | opencode | A JS plugin, different from the rest |
-| 6 | Windsurf | Its own event names |
-| 7 | Antigravity | After a research spike: its hooks and plugin format |
-
-## Open questions
-
-- Which agents report skill use directly (as Claude Code's `Skill` tool does), so the hook need not infer it? Check each during step 1.
-- Codex: write into `config.toml`, or ship hooks as a Codex plugin? A plugin is cleaner if Codex lets it run commands on every event.
-- Whether to also scan Devin and Antigravity's skills folders for their planets (`AGENTS` in `cli/agents.mjs`): needed for their events to have skills to match.
+1. Try each agent for real, as the user: set it up, type a `/skill` (or `$`, `@`), let it load one on its own, and check the Live card. Record one real payload per hook into `tests/fixtures/hooks/<agent>/` and replace the doc-based payloads in `tests/unit/hook.spec.ts`.
+2. Settle each "inferred" in the table from that run.
+3. Subagents for the agents that report them without a permission hook (Codex and Copilot's `SubagentStart`).
+4. opencode turns: find the event that carries a user message (`message.updated`), if one does.
 
 ## Exit
 

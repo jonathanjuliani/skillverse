@@ -6,6 +6,7 @@ import fs from 'node:fs'
 import os from 'node:os'
 
 import { findRunning, LOG_FILE, portsFor, runHere, start, stop } from '../cli/server.mjs'
+import { DEFAULT_PORTS } from '../cli/shared.mjs'
 
 const HELP = `Skillverse: every skill your AI agents have, as a globe, a graph and a tree.
 
@@ -43,6 +44,16 @@ async function main() {
   if (flag('--help') || flag('-h') || command === 'help') return console.log(HELP)
   if (flag('--version') || flag('-v')) return console.log(version())
 
+  // An agent's hook never fails over a bad port setting: it falls back to the defaults.
+  if (command === 'hook') {
+    const { runHook } = await import('../cli/hook.mjs')
+    let ports = DEFAULT_PORTS
+    try {
+      ports = portsFor(value('--port'))
+    } catch {}
+    return runHook(argv[1], ports)
+  }
+
   const ports = portsFor(value('--port'))
 
   switch (command) {
@@ -69,10 +80,6 @@ async function main() {
         `Running at ${server.url}: web app ${server.version}, pid ${server.pid}, ${server.clients} page(s) open, ${server.seq} event(s)`,
       )
       return
-    }
-    case 'hook': {
-      const { runHook } = await import('../cli/hook.mjs')
-      return runHook(argv[1], ports)
     }
     case 'setup': {
       const { setup } = await import('../cli/setup.mjs')

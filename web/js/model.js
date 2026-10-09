@@ -122,16 +122,27 @@ export function agentOfSource(source) {
   return source ? agents.findIndex(agent => agent.id === source) : LIVE_AGENT
 }
 
-/** The skill an event names (`docs:write`, `/write`, `write`) on its source's planet, or -1. */
-export function findSkill(name, source) {
-  const agent = agentOfSource(source)
+/** The skill an agent's event names (`docs:write`, `/write`, `write`) on that agent's planet, or -1. */
+function findOn(agent, name) {
   if (agent < 0 || !byId[agent]) return -1
   const key = String(name || '')
     .toLowerCase()
-    .replace(/^\//, '')
+    .replace(/^[/$@]/, '')
   const short = key.split(':').pop()
   const byShort = byName[agent].get(short)
   return byId[agent].get(key) ?? (byShort >= 0 ? byShort : -1)
+}
+
+const SHARED = agents.findIndex(agent => agent.id === 'shared')
+
+/**
+ * The skill an event names: on its source's planet (Claude Code's when it has
+ * none), else in Shared (`~/.agents/skills`, which several agents read); -1
+ * when neither has it.
+ */
+export function findSkill(name, source) {
+  const own = findOn(agentOfSource(source), name)
+  return own >= 0 || !source || source === 'claude' ? own : findOn(SHARED, name)
 }
 
 const connectorCount = skills.filter(skill => skill.kind === 'mcp').length

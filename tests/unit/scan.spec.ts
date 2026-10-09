@@ -120,6 +120,18 @@ describe('skillsOf', () => {
   })
 })
 
+describe('skillsOf, Devin and Antigravity', () => {
+  it("reads Devin's skills, and Antigravity's from the folder its app, IDE and CLI share", () => {
+    const other = fs.mkdtempSync(path.join(os.tmpdir(), 'skillverse-more-'))
+    skill(path.join(other, '.config', 'devin', 'skills'), 'triage')
+    skill(path.join(other, '.gemini', 'config', 'skills'), 'review')
+    skill(path.join(other, '.gemini', 'antigravity-cli', 'skills'), 'ship')
+    expect(ids(skillsOf('devin', undefined, other))).toEqual(['triage'])
+    expect(ids(skillsOf('antigravity', undefined, other))).toEqual(['review', 'ship'])
+    fs.rmSync(other, { recursive: true, force: true })
+  })
+})
+
 describe('scanAgents', () => {
   it('shows every installed agent as a planet, an empty one too, with twins across them', () => {
     const data = scanAgents(home)

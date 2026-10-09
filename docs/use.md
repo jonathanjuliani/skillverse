@@ -44,9 +44,20 @@ skillverse setup          # which agents can, and which are set up
 skillverse setup cursor   # adds Skillverse's hooks to ~/.cursor/hooks.json
 ```
 
-`--print` shows the file it would write without writing it, and `--undo` removes exactly Skillverse's entries. The rest of the file is kept, and the old one is saved next to it as `hooks.json.skillverse-backup`. Run it from a global install (`npm i -g`) or a clone, not `npx`: the hook calls this copy of Skillverse by its full path, and so the Node it ran with. After switching Node versions or moving a clone, run `skillverse setup cursor` again.
+| Agent | `skillverse setup …` | Writes | A skill shows when |
+| --- | --- | --- | --- |
+| Cursor (editor and CLI) | `cursor` | `~/.cursor/hooks.json` | a prompt starts with `/name`; it reads a `SKILL.md` |
+| Codex (CLI and app) | `codex` | `~/.codex/hooks.json` | a prompt starts with `$name` or `/name`; it reads a `SKILL.md`. **Then trust the hooks once with `/hooks` in Codex.** |
+| GitHub Copilot CLI and VS Code | `copilot` (or `vscode`) | `~/.copilot/hooks/skillverse.json` | a prompt starts with `/name`; it reads a `SKILL.md` |
+| Gemini CLI | `gemini` | `~/.gemini/settings.json` | it activates a skill |
+| Devin CLI | `devin` | `~/.config/devin/config.json` | a prompt starts with `/name`; its skill tool; it reads a `SKILL.md` |
+| Windsurf | `windsurf` | `~/.codeium/windsurf/hooks.json` | a prompt starts with `@name`; it reads a `SKILL.md` |
+| Antigravity | `antigravity` | `~/.gemini/config/hooks.json` | it reads a skill file (it has no hook for prompts) |
+| opencode | `opencode` | `~/.config/opencode/plugins/skillverse.js` | its skill tool runs |
 
-Only Claude Code reports which skill loaded. For other agents a skill shows when a prompt starts with `/name` or when the agent reads a skill's `SKILL.md`. Supported today: **Cursor** (the editor and its CLI). More are planned in [agent-adapters.md](plans/agent-adapters.md).
+`--print` shows the file it would write without writing it, and `--undo` removes exactly Skillverse's entries. In a shared file the rest is kept, and the old file is saved next to it with `.skillverse-backup` added. Copilot's file and opencode's plugin are Skillverse's own, so undo removes them. Run it from a global install (`npm i -g`) or a clone, not `npx`: the hook calls this copy of Skillverse by its full path, and so the Node it ran with. After switching Node versions or moving a clone, run `skillverse setup <agent>` again. Restart the agent to load its hooks.
+
+Only Claude Code, Gemini CLI and opencode say which skill loaded; for the others it is spotted as the table says. A skill an agent reads from `~/.agents/skills` lights up on the Shared planet.
 
 ## The terminal app
 

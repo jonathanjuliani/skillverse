@@ -94,9 +94,9 @@ export function ingest(event, isHistory = false) {
     }
   }
   if (i < 0) {
-    // Named the way the planets' ids are: with the agent's prefix, unless it is Claude Code's.
-    const name = event.source && event.source !== 'claude' ? `${event.source}/${event.skill}` : event.skill
-    if (!isHistory) addFeed({ kind: 'skill', name, i: -1, from, agent, session })
+    // Another agent's hook guesses at skills (any `/word` it is typed), so only Claude Code's unknown names are listed.
+    if (!isHistory && (!event.source || event.source === 'claude'))
+      addFeed({ kind: 'skill', name: event.skill, i: -1, from, agent, session })
     return
   }
   live.heat.set(i, heatOf(i) + 1)

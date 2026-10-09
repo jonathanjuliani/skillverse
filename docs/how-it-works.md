@@ -19,6 +19,8 @@ The web app finds each agent's own folders at home. It never reads a project's f
 | GitHub Copilot (`~/.copilot`) | `installed-plugins/` | `skills/` | | `mcp-config.json` |
 | opencode (`~/.config/opencode`) | | `skills/` | | `opencode.json`'s `mcp` |
 | Windsurf (`~/.codeium/windsurf`) | | `skills/` | | `mcp_config.json` |
+| Devin (`~/.config/devin`) | | `skills/` | | |
+| Antigravity (`~/.gemini/config`, `antigravity*/`) | | each one's `skills/` | | |
 | Shared (`~/.agents`) | | `skills/`, grouped by the repo each came from | | |
 
 A connector is read by its name and how it is reached (`http · host` or `stdio · command`) only. Its command line, headers, environment, and keys are never read into the page. A Claude Code session with the plugin replaces the Claude Code part with its exact list (built-ins and claude.ai connectors included, project skills left out). The connectors on disk stay.
@@ -48,6 +50,6 @@ Nothing leaves your machine except the web app's requests for its graph librarie
 - The plugin API is early access. See [Requirements](install.md#requirements).
 - On the desktop app the pane cannot draw graphs that take clicks. The graphs live in the web app and the terminal app.
 - The links between skills are inferred from their text. See [Links](#links).
-- Live activity comes from Claude Code sessions and, after `skillverse setup`, Cursor. Other agents' skills are spotted from a typed `/name` or a `SKILL.md` they read, so a skill the agent applies without reading its file does not show. The other agents' costs are estimates.
+- Live activity comes from Claude Code sessions and, after `skillverse setup`, the other agents. Only Claude Code, Gemini CLI and opencode say which skill loaded; for the others a skill is spotted from a typed `/name` (`$name` in Codex, `@name` in Windsurf) or a `SKILL.md` they read, so a skill an agent applies without reading its file does not show. A name that matches no skill on the agent's planet or in Shared is left out. The other agents' costs are estimates.
 - A connector's tools are listed by its agent when it runs, so what they cost in context is not counted.
 - Claude Code's built-in skills are not on disk. They show once a session with the plugin sends its list. The other agents' folder layouts are read as they are today and may change with their releases.
