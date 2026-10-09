@@ -6,6 +6,10 @@ Add each change under **Unreleased** as you make it; `pnpm version` moves them u
 
 ## [Unreleased]
 
+### Fixed
+
+- The repo root (which is the plugin) no longer has a `bin/` folder: claude.ai refuses a plugin with one, which can make the desktop app's marketplace sync fail. The `skillverse` command moved to `cli/skillverse.mjs`; it is still `skillverse` once installed. If you ran `skillverse setup` before, run it again for each agent so its hooks point to the new file.
+
 ### Added
 
 - `skillverse summary [--agent <id>] [--json]`: every agent's (or one's) plugins, skills, connectors, categories and context cost as text, from the running web app or a scan. The web app serves it as `GET /summary.json`.

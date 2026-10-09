@@ -32,7 +32,7 @@ pnpm run build && pnpm run snapshot   # the terminal app, one frame
 | --- | --- |
 | `hooks/register.tsx` | The plugin: discovery, the pane, the commands, feeding the web app |
 | `hooks/skills.ts`, `hooks/tree.ts`, `hooks/layout.ts`, `hooks/web.ts` | Parsing, grouping, layouts, web data (shared with the CLI and the app) |
-| `bin/skillverse.mjs`, `cli/` | The `skillverse` command: run, open, status, stop; the scan of agents |
+| `cli/skillverse.mjs`, `cli/` | The `skillverse` command: run, open, status, stop; the scan of agents |
 | `server/skillverse-server.mjs` | The web app's server |
 | `web/index.html`, `web/styles.css`, `web/js/` | The web app's page: ES modules, no build step |
 | `tui/skillverse.mjs` | The terminal app |

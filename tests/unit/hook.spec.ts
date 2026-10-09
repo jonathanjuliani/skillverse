@@ -183,7 +183,7 @@ describe('sendHook', () => {
   })
 
   it('exits 0 and prints nothing when no web app is running', () => {
-    const run = spawnSync(process.execPath, ['bin/skillverse.mjs', 'hook', 'cursor', '--port', '1'], {
+    const run = spawnSync(process.execPath, ['cli/skillverse.mjs', 'hook', 'cursor', '--port', '1'], {
       input: JSON.stringify({ ...cursor, hook_event_name: 'beforeSubmitPrompt', prompt: '/review' }),
       encoding: 'utf8',
       timeout: 5000,
@@ -197,7 +197,7 @@ describe('sendHook', () => {
 
 describe('setup', () => {
   let home = ''
-  const command = hookCommand('cursor', '/usr/bin/node', '/opt/skillverse/bin/skillverse.mjs')
+  const command = hookCommand('cursor', '/usr/bin/node', '/opt/skillverse/cli/skillverse.mjs')
   const file = () => path.join(home, '.cursor', 'hooks.json')
   const write = (plan: { file: string; after: string }) => {
     fs.mkdirSync(path.dirname(plan.file), { recursive: true })
@@ -236,7 +236,7 @@ describe('setup', () => {
   })
 
   it('replaces its entry when Skillverse moved, instead of adding a second', () => {
-    write(planSetup('cursor', { home, command: hookCommand('cursor', '/old/node', '/old/skillverse/bin/skillverse.mjs') }))
+    write(planSetup('cursor', { home, command: hookCommand('cursor', '/old/node', '/old/skillverse/cli/skillverse.mjs') }))
     expect(JSON.parse(planSetup('cursor', { home, command }).after).hooks.beforeSubmitPrompt).toEqual([{ command }])
   })
 
@@ -260,7 +260,7 @@ describe('setup', () => {
       const plan0 = planSetup(agent, { home, command: 'x' })
       fs.mkdirSync(path.dirname(plan0.file), { recursive: true })
       fs.writeFileSync(plan0.file, JSON.stringify(own))
-      const ours = hookCommand(agent, '/usr/bin/node', '/opt/skillverse/bin/skillverse.mjs')
+      const ours = hookCommand(agent, '/usr/bin/node', '/opt/skillverse/cli/skillverse.mjs')
       const added = planSetup(agent, { home, command: ours })
       expect(read(JSON.parse(added.after))).toBe(ours)
       expect(JSON.parse(added.after).model).toBe('theirs')
@@ -296,7 +296,7 @@ describe('setup', () => {
   })
 
   it('knows the npx cache', () => {
-    expect(isNpxCache('/Users/me/.npm/_npx/abc/node_modules/@jonathanjuliani/skillverse/bin/skillverse.mjs')).toBe(true)
-    expect(isNpxCache('/usr/local/lib/node_modules/@jonathanjuliani/skillverse/bin/skillverse.mjs')).toBe(false)
+    expect(isNpxCache('/Users/me/.npm/_npx/abc/node_modules/@jonathanjuliani/skillverse/cli/skillverse.mjs')).toBe(true)
+    expect(isNpxCache('/usr/local/lib/node_modules/@jonathanjuliani/skillverse/cli/skillverse.mjs')).toBe(false)
   })
 })

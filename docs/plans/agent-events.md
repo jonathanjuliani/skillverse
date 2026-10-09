@@ -65,7 +65,7 @@ A `/name` that is not a skill (a built-in command) does not match one on the pla
 |---|---|
 | Merges into the agent's config, keeping everything else as it was, and backs the file up first (`<file>.skillverse-backup`) | It is the person's file |
 | Marks its entries by their command (`… hook <agent>`), so `--undo` removes exactly those and a second `setup` changes nothing | Safe to run twice; nothing else is touched |
-| Writes absolute paths: Node's and this package's `bin/skillverse.mjs` | Desktop apps often start without the shell's `PATH` |
+| Writes absolute paths: Node's and this package's `cli/skillverse.mjs` | Desktop apps often start without the shell's `PATH` |
 | Refuses to run from the npx cache, and prints the `npm install -g` command | That folder can be cleared, which would leave the agent calling a missing file |
 | `--print` shows the file it would write, and writes nothing | To check before trusting it |
 | Only the hooks that are not permission hooks | A permission hook that answers wrongly can block the agent; these only observe |

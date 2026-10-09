@@ -5,8 +5,8 @@ import { spawn } from 'node:child_process'
 import fs from 'node:fs'
 import os from 'node:os'
 
-import { findRunning, LOG_FILE, portsFor, runHere, start, stop } from '../cli/server.mjs'
-import { DEFAULT_PORTS } from '../cli/shared.mjs'
+import { findRunning, LOG_FILE, portsFor, runHere, start, stop } from './server.mjs'
+import { DEFAULT_PORTS } from './shared.mjs'
 
 const HELP = `Skillverse: every skill your AI agents have, as a globe, a graph and a tree.
 
@@ -48,7 +48,7 @@ async function main() {
 
   // An agent's hook never fails over a bad port setting: it falls back to the defaults.
   if (command === 'hook') {
-    const { runHook } = await import('../cli/hook.mjs')
+    const { runHook } = await import('./hook.mjs')
     let ports = DEFAULT_PORTS
     try {
       ports = portsFor(value('--port'))
@@ -84,11 +84,11 @@ async function main() {
       return
     }
     case 'setup': {
-      const { setup } = await import('../cli/setup.mjs')
+      const { setup } = await import('./setup.mjs')
       return setup(argv[1]?.startsWith('-') ? undefined : argv[1], { isUndo: flag('--undo'), isPrint: flag('--print') })
     }
     case 'summary': {
-      const { printSummary } = await import('../cli/summary.mjs')
+      const { printSummary } = await import('./summary.mjs')
       return printSummary({ agent: value('--agent'), isJson: flag('--json'), ports })
     }
     case 'stop': {
