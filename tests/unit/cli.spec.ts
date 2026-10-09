@@ -13,7 +13,7 @@ let home = ''
  */
 function cli(...args: string[]) {
   try {
-    const out = execFileSync('node', ['bin/skillverse.mjs', ...args], {
+    const out = execFileSync('node', ['cli/skillverse.mjs', ...args], {
       env: { ...process.env, HOME: home, SKILLVERSE_PORT: String(PORT) },
       encoding: 'utf8',
     })

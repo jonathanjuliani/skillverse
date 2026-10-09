@@ -13,7 +13,7 @@ import { fileURLToPath } from 'node:url'
 
 import { AGENTS, isInstalled } from './agents.mjs'
 
-const BIN = fileURLToPath(new URL('../bin/skillverse.mjs', import.meta.url))
+const BIN = fileURLToPath(new URL('./skillverse.mjs', import.meta.url))
 const HOOK_MODULE = fileURLToPath(new URL('./hook.mjs', import.meta.url))
 
 // The entries each hook format takes, for one command.

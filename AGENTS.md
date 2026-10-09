@@ -17,7 +17,7 @@ pnpm run lint && pnpm test && pnpm run validate && pnpm run test:plugin && pnpm 
 ## When editing `hooks/register.tsx`
 
 - Pass `$` only to functions in the same file: the engine refuses a module that passes `$` across an import. Logic without `$` goes in `hooks/skills.ts`, `tree.ts`, `layout.ts` or `web.ts`, which the terminal app and the Vitest specs also import.
-- Import only the plugin's own files, never an npm package: a marketplace install has no `node_modules`. The same holds for `server/`, `cli/` and `bin/` (Node built-ins only).
+- Import only the plugin's own files, never an npm package: a marketplace install has no `node_modules`. The same holds for `server/` and `cli/` (Node built-ins only). Keep no `bin/` folder at the repo root: the repo root is the plugin, and claude.ai refuses a plugin with a top-level `bin/`, so the desktop app cannot sync the marketplace. The `skillverse` command is `cli/skillverse.mjs`.
 - The plugin never starts or serves the web app: it finds it (`/health`), sends it the session's skills (`POST /skills`) and live events (`POST /events`), and tells the person how to start or install it.
 - When adding an `atom`, declare its key in [types/index.d.ts](types/index.d.ts), or `validate` fails.
 - Never edit `.claude-plugin/types/`: Claude Code regenerates it.

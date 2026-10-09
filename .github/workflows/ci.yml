@@ -56,7 +56,7 @@ jobs:
       - name: Build and run the terminal app
         run: |
           pnpm run build
-          node bin/skillverse.mjs --scan --snapshot 100x30 --frames 5 --plain
+          node cli/skillverse.mjs --scan --snapshot 100x30 --frames 5 --plain
 
       - name: The npm package installs and runs
         run: |
