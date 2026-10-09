@@ -72,6 +72,12 @@ describe('skillverse-server', () => {
     expect(headers['access-control-allow-origin']).toBeUndefined()
   })
 
+  it("serves each agent's summary without the skills, to a local request only", async () => {
+    const response = await fetch(`http://localhost:${PORT}/summary.json`)
+    expect(Array.isArray((await response.json()).agents)).toBe(true)
+    expect((await request('/summary.json', { headers: { host: `evil.example.com:${PORT}` } })).status).toBe(403)
+  })
+
   it('never serves a file outside web/', async () => {
     expect((await request('/../../etc/passwd', { headers: local })).status).not.toBe(200)
   })

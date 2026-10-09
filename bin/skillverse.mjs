@@ -11,12 +11,14 @@ import { DEFAULT_PORTS } from '../cli/shared.mjs'
 const HELP = `Skillverse: every skill your AI agents have, as a globe, a graph and a tree.
 
 Usage:
-  skillverse [--scan] [--snapshot WxH ...]   the terminal app (the default)
+  skillverse [--scan] [--agent <id>] [--snapshot WxH ...]
+                                             the terminal app (the default); --agent shows another agent's skills
   skillverse run [web] [--port N]
                                              start the web app in the background
   skillverse run --here [--dev] [--port N]   run it in this terminal (--dev: reload on change)
   skillverse open                            open the web app in the browser (starts it if needed)
   skillverse status                          is it running, and where
+  skillverse summary [--agent <id>] [--json] what each agent has, and what it costs in context
   skillverse stop                            stop the web app skillverse run started
   skillverse setup [<agent>] [--undo] [--print]
                                              send an agent's live events to the web app (no agent: list them)
@@ -84,6 +86,10 @@ async function main() {
     case 'setup': {
       const { setup } = await import('../cli/setup.mjs')
       return setup(argv[1]?.startsWith('-') ? undefined : argv[1], { isUndo: flag('--undo'), isPrint: flag('--print') })
+    }
+    case 'summary': {
+      const { printSummary } = await import('../cli/summary.mjs')
+      return printSummary({ agent: value('--agent'), isJson: flag('--json'), ports })
     }
     case 'stop': {
       const port = await stop()

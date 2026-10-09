@@ -9,6 +9,7 @@
 // starts it; the Claude Code plugin only finds it and feeds it.
 //
 //   GET  /data.js         the skills, as window.SKILLVERSE = {...}
+//   GET  /summary.json    each agent's figures and costs, without the skills (`skillverse summary`)
 //   POST /refresh         scan again
 //   POST /skills          {"agent":"claude","data":{...},"stats":{...}}: a session's exact list (and what it
 //                         measured: the new empty session, listing cost, uses), replacing that agent's scan
@@ -102,7 +103,7 @@ const sessions = new Map()
  * on first ask and again on POST /refresh; an agent a session sent its own
  * list for shows that list, with the connectors the scan found.
  */
-async function skillsScript(isFresh = false) {
+async function skillsData(isFresh = false) {
   const scan = await import('../cli/scan.mjs')
   if (!parts || isFresh) {
     parts = scan.scanParts()
@@ -123,7 +124,12 @@ async function skillsScript(isFresh = false) {
     })
     data = (await import('../cli/shared.mjs').then(shared => shared.load('web'))).combineAgents(shown, new Date().toISOString())
   }
-  return `window.SKILLVERSE = ${JSON.stringify(data)}\n`
+  return data
+}
+
+/** The skills as the page loads them: a script that sets window.SKILLVERSE. */
+async function skillsScript(isFresh = false) {
+  return `window.SKILLVERSE = ${JSON.stringify(await skillsData(isFresh))}\n`
 }
 
 /** A session's stats as the plugin sends them: an object of the known keys, nothing else kept. */
@@ -137,7 +143,7 @@ async function takeSkills(body) {
   const { agent, data: sent, stats } = JSON.parse(body)
   if (typeof agent !== 'string' || !Array.isArray(sent?.skills) || !Array.isArray(sent?.regions))
     throw new Error('expected {"agent","data":{"skills","regions"}}')
-  await skillsScript()
+  await skillsData()
   const { AGENTS } = await import('../cli/scan.mjs')
   const known = AGENTS.find(item => item.id === agent)
   if (!known) throw new Error(`unknown agent: ${agent}`)
@@ -221,6 +227,15 @@ const server = http.createServer(async (request, response) => {
 
   if (url.pathname === '/health')
     return send(response, 200, { ok: true, skillverse: true, version: VERSION, clients: clients.size, seq, pid: process.pid })
+
+  if (url.pathname === '/summary.json') {
+    try {
+      const { summarize } = await import('../cli/summary.mjs')
+      return send(response, 200, { agents: summarize(await skillsData()) })
+    } catch (error) {
+      return send(response, 500, { ok: false, error: String(error.message || error) })
+    }
+  }
 
   if (url.pathname === '/data.js') {
     try {

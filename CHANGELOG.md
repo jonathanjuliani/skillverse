@@ -8,6 +8,15 @@ Add each change under **Unreleased** as you make it; `pnpm version` moves them u
 
 ### Added
 
+- `skillverse summary [--agent <id>] [--json]`: every agent's (or one's) plugins, skills, connectors, categories and context cost as text, from the running web app or a scan. The web app serves it as `GET /summary.json`.
+- A `/skillverse` skill for other agents, added by `skillverse setup <agent>`: it prints that agent's summary.
+- `skillverse --agent <id>`: the terminal app for another agent's skills.
+- The web view's `?embed=1` for narrow panels, and a VS Code extension (`vscode/`) that shows it in a side panel of VS Code, Cursor, Windsurf or Antigravity, on the editor's own agent.
+
+### Fixed
+
+- The web view's `?agent=` selects that agent in the switcher and the Agents card, not only on the canvas.
+
 - Live activity from other agents: `skillverse setup <agent>` adds Skillverse's hooks to Cursor, Codex, GitHub Copilot (CLI and VS Code), Gemini CLI, Devin, Windsurf, Antigravity or opencode (`--print` to preview, `--undo` to remove), and their skills light up on their planets as they load. `skillverse setup` lists the agents and which are set up.
 - Devin and Antigravity are planets in the web app.
 - Live events carry their **source** agent, and the server numbers the turns of events that come without one.

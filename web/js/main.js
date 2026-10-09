@@ -18,6 +18,8 @@ const HINTS = {
   '2d': 'drag to pan · scroll to zoom · click a skill',
 }
 /** Remembered per browser: folded cards and Follow activity. Storage may be off; the page works without it. */
+/** `?embed=1`: the page sits in an editor's side panel (the VS Code extension). */
+const isEmbed = new URLSearchParams(location.search).get('embed') === '1'
 const PREFS_KEY = 'skillverse.prefs'
 const $ = id => document.getElementById(id)
 
@@ -219,6 +221,7 @@ liveHooks.reload = () => {
   if (state.selected >= 0) params.set('skill', skills[state.selected].id)
   if (state.view !== 'orbit') params.set('view', state.view)
   if (state.agent !== 'all' && agents[state.agent]) params.set('agent', agents[state.agent].id)
+  if (isEmbed) params.set('embed', '1')
   const query = params.toString()
   location.replace(`${location.pathname}${query ? `?${query}` : ''}`)
 }
@@ -327,6 +330,12 @@ document.querySelector('.skip').addEventListener('click', event => {
 
 $('stats').textContent = summary
 renderAgentsCard()
+// The agent the address asks for (?agent=codex), before the cards and the view are drawn.
+const params = new URLSearchParams(location.search)
+const wantedAgent = agents.findIndex(agent => agent.id === params.get('agent'))
+if (wantedAgent >= 0) state.agent = wantedAgent
+// Embedded in a narrow panel (an editor's side panel): no stats, no planet switcher, no hint.
+if (isEmbed) document.documentElement.dataset.embed = ''
 setupCards()
 setupSheet()
 setupSearch()
@@ -335,9 +344,6 @@ setAgent(state.agent)
 Promise.all([loadScript(CDN.marked), loadScript(CDN.purify)])
   .catch(error => console.warn('Skillverse: SKILL.md shows as plain text', error))
   .finally(renderPanel)
-const params = new URLSearchParams(location.search)
-const wantedAgent = agents.findIndex(agent => agent.id === params.get('agent'))
-if (wantedAgent >= 0) state.agent = wantedAgent
 const wanted = params.get('skill')
 show(views[params.get('view')] ? params.get('view') : 'orbit').then(() => {
   const i = wanted ? skills.findIndex(skill => skill.id === wanted) : -1

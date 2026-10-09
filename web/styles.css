@@ -1138,3 +1138,11 @@ button.stat-row:focus-visible {
     transition: none !important;
   }
 }
+
+/* Embedded in an editor's side panel (?embed=1): only what fits a narrow column. */
+[data-embed] #stats,
+[data-embed] #planets,
+[data-embed] #hint,
+[data-embed] .brand-name {
+  display: none;
+}

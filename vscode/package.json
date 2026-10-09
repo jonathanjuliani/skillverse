@@ -1,0 +1,83 @@
+{
+  "name": "skillverse",
+  "displayName": "Skillverse",
+  "description": "See every skill your AI agents have, and watch them load live, in a side panel.",
+  "version": "0.1.0",
+  "publisher": "jonathanjuliani",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/jonathanjuliani/skillverse"
+  },
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Visualization",
+    "Other"
+  ],
+  "keywords": [
+    "skills",
+    "agents",
+    "claude",
+    "codex",
+    "copilot",
+    "cursor"
+  ],
+  "main": "./extension.js",
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "skillverse",
+          "title": "Skillverse",
+          "icon": "media/icon.svg"
+        }
+      ]
+    },
+    "views": {
+      "skillverse": [
+        {
+          "type": "webview",
+          "id": "skillverse.panel",
+          "name": "Skills"
+        }
+      ]
+    },
+    "commands": [
+      {
+        "command": "skillverse.open",
+        "title": "Skillverse: Open the panel"
+      },
+      {
+        "command": "skillverse.openInBrowser",
+        "title": "Skillverse: Open the web app in the browser"
+      },
+      {
+        "command": "skillverse.reload",
+        "title": "Skillverse: Reload the panel"
+      }
+    ],
+    "configuration": {
+      "title": "Skillverse",
+      "properties": {
+        "skillverse.port": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "default": null,
+          "description": "The web app's port. Empty: the one `skillverse run` picked (4317–4320)."
+        },
+        "skillverse.agent": {
+          "type": "string",
+          "default": "",
+          "description": "The planet to open on (codex, copilot, cursor, …). Empty: this editor's own agent, or every agent."
+        }
+      }
+    }
+  }
+}

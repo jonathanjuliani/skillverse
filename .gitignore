@@ -7,6 +7,7 @@ tui/lib/
 node_modules/
 *.log
 *.tgz
+*.vsix
 .DS_Store
 
 # pnpm run dev: the debug log and Claude Code's "latest" link to it

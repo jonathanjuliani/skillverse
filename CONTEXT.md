@@ -25,6 +25,8 @@ Shared vocabulary for Skillverse. Code, docs and the UI use these words this way
 - **Surface**: where Claude Code draws: `terminal`, `desktop`, `vscode` or `mobile`. The pane behaves differently per surface.
 - **Web app**: `skillverse run`; the **Skillverse server** (`server/skillverse-server.mjs`) and the page it serves at `http://localhost:4317` (the **web view**). Installed with npm or a clone, separately from the plugin.
 - **Live events**: what the plugin sends the web app as it happens (a skill loaded, a turn began), shown in the web view's **Live** card. An event's **source** is the agent it came from (`cursor`; Claude Code's when missing); its `agent` field is the subagent inside the session.
+- **Summary command**: `skillverse summary`, an agent's summary as text; the **`/skillverse` skill** runs it inside any agent.
+- **Embed**: the web view at `?embed=1`, trimmed for an editor's side panel; the **VS Code extension** (`vscode/`) shows it.
 - **Hook**: `skillverse hook <agent>`, what another agent's shell hook runs to send live events; **setup** (`skillverse setup <agent>`) writes it into the agent's hooks file.
 - **Orbit view**: the web view's default: the Skillverse **star** at the centre and every agent a **planet** on an **orbit** around it; the camera **follows** a planet once you fly to it.
 - **Agents card**: the web view's card where an agent is picked and its costs read; **groups** sit inside each agent's categories.

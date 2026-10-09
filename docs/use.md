@@ -35,6 +35,14 @@ The pane shows:
 
 Each planet is split into **Plugins**, **Your skills**, **Built-in**, and **Connectors (MCP)**, and within those into each plugin or group. The Orbit view puts them in one scene: Skillverse is the star at the centre and each agent is a planet orbiting it, sized by what it has (the biggest on the inner orbit). There is also a 3D graph with a cluster per agent and an Obsidian-style 2D graph. A skill installed for several agents is linked across them. When the web app runs, every Claude Code session with the plugin feeds it live activity.
 
+### Inside other agents and editors
+
+- **`/skillverse` in any agent.** `skillverse setup <agent>` also adds a `/skillverse` skill (in `~/.agents/skills/`, or Cursor's and Antigravity's own skills folder). Typed in the agent, it prints that agent's summary: its plugins, skills and connectors, each category's share, what its skill descriptions cost every session, and the web app's address.
+- **`skillverse summary [--agent <id>] [--json]`** prints the same in any terminal: every agent, or one. It reads the running web app (which knows what Claude Code sessions measured), else scans.
+- **The terminal app for any agent.** `skillverse --agent codex` opens Codex's globe, graph and tree; keep it in a split pane next to a CLI agent.
+- **A panel in your editor.** The VS Code extension (`vscode/`; `pnpm run vscode:package` builds the `.vsix`) shows the web app in a side panel of VS Code, Cursor, Windsurf or Antigravity, opened on that editor's agent (Copilot in VS Code). When the web app is not running, the panel's **Start it** runs `skillverse run` in a terminal. Install the `.vsix` with **Extensions: Install from VSIX…**.
+- **Any web view address** takes `?agent=<id>` to open on that planet, and `?embed=1` for a narrow panel (no stats, switcher or hint).
+
 ### Live activity from other agents
 
 Other agents send their activity through their own hooks. Set one up once:

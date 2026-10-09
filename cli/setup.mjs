@@ -175,6 +175,62 @@ export function applySetup({ file, before, after, isChanged, isOwned }) {
   fs.writeFileSync(file, after)
 }
 
+/** Where each agent reads user skills: its own folder for Cursor and Antigravity, `~/.agents/skills` for the rest. */
+const SKILL_HOMES = {
+  cursor: home => path.join(home, '.cursor', 'skills'),
+  antigravity: home => path.join(home, '.gemini', 'config', 'skills'),
+}
+const SHARED_SKILLS = home => path.join(home, '.agents', 'skills')
+const SKILL_MARK = '<!-- Written by skillverse setup; skillverse setup <agent> --undo removes it. -->'
+
+/** The `/skillverse` skill: any agent runs the summary for itself (its id from the list) and shows it. */
+export const skillText = (command = `"${process.execPath}" "${BIN}" summary`) => `---
+name: skillverse
+description: Show what this agent has installed (skills, plugins, connectors), what they cost in context every session, and where to watch them live in the Skillverse web app. Use when the user types /skillverse, or asks which skills or plugins are installed, how many there are, or what they cost.
+---
+
+${SKILL_MARK}
+
+Run this, with your own agent's id after \`--agent\`:
+
+\`\`\`bash
+${command} --agent <id>
+\`\`\`
+
+| You are | id |
+| --- | --- |
+| Codex | codex |
+| Cursor | cursor |
+| GitHub Copilot (CLI or VS Code) | copilot |
+| Gemini CLI | gemini |
+| Devin | devin |
+| Windsurf | windsurf |
+| Google Antigravity | antigravity |
+| opencode | opencode |
+
+When you are none of these, or not sure, run it without \`--agent\` to show every agent.
+
+Show the output to the user as it is, in a code block. It ends with the web app's address when it runs, or how to start it: mention that line too. Do not summarise or change the figures.
+`
+
+/** Where an agent's `/skillverse` skill goes. */
+export const skillFile = (id, home) => path.join((SKILL_HOMES[id] ?? SHARED_SKILLS)(home), 'skillverse', 'SKILL.md')
+
+/**
+ * The `/skillverse` skill for an agent: written when missing, removed on undo
+ * (the shared copy only once no other agent that reads it is still set up).
+ * A SKILL.md there that Skillverse did not write is left alone.
+ */
+export function planSkill(id, { home = os.homedir(), isUndo = false, othersSetUp = [] } = {}) {
+  const file = skillFile(id, home)
+  const before = fs.existsSync(file) ? fs.readFileSync(file, 'utf8') : undefined
+  const isTheirs = before !== undefined && !before.includes(SKILL_MARK)
+  const isShared = !SKILL_HOMES[id]
+  const isKept = isTheirs || (isUndo && isShared && othersSetUp.some(other => !SKILL_HOMES[other]))
+  const after = isKept ? before : isUndo ? null : skillText()
+  return { file, before, after, isChanged: !isKept && (isUndo ? before !== undefined : before !== after), isOwned: true, isTheirs }
+}
+
 /** Whether the agent is installed here, by the folders the scan looks for. */
 const installed = (id, home) => {
   const agent = AGENTS.find(one => one.id === id)
@@ -217,17 +273,31 @@ export function setup(name, { isUndo = false, isPrint = false, home = os.homedir
     throw new Error('this runs from the npx cache, which can be cleared. Install it first: npm install -g @jonathanjuliani/skillverse')
   }
   const plan = planSetup(known.id, { home, isUndo })
+  const othersSetUp = setupStatus(home)
+    .filter(one => one.id !== known.id && one.isSetUp)
+    .map(one => one.id)
+  const skill = planSkill(known.id, { home, isUndo, othersSetUp })
   if (isPrint) {
-    const what = plan.after === null ? '(removed)' : plan.after
-    return console.log(`${tilde(plan.file)}${plan.isChanged ? '' : ' (no change)'}:\n${what}`)
-  }
-  applySetup(plan)
-  if (!plan.isChanged) return console.log(`${label} is already ${isUndo ? 'not set up' : 'set up'}; ${tilde(plan.file)} is unchanged.`)
-  if (isUndo) {
-    console.log(plan.isOwned ? `Removed ${tilde(plan.file)}.` : `Removed Skillverse's hooks from ${tilde(plan.file)}.`)
+    for (const one of [plan, skill]) {
+      const what = one.after === null ? '(removed)' : one.after
+      console.log(`${tilde(one.file)}${one.isChanged ? '' : ' (no change)'}:\n${what}`)
+    }
     return
   }
-  console.log(`${label} now sends its live events to the web app (${tilde(plan.file)}). Start the web app with skillverse run.`)
-  if (known.note) console.log(known.note)
-  if (plan.before !== undefined && !plan.isOwned) console.log(`The previous file is in ${tilde(plan.file)}.skillverse-backup.`)
+  applySetup(plan)
+  applySetup(skill)
+  if (isUndo) {
+    if (plan.isChanged) console.log(plan.isOwned ? `Removed ${tilde(plan.file)}.` : `Removed Skillverse's hooks from ${tilde(plan.file)}.`)
+    else console.log(`${label}'s hooks were not set up; ${tilde(plan.file)} is unchanged.`)
+    if (skill.isChanged) console.log(`Removed the /skillverse skill (${tilde(skill.file)}).`)
+    return
+  }
+  if (!plan.isChanged) console.log(`${label} is already set up; ${tilde(plan.file)} is unchanged.`)
+  else {
+    console.log(`${label} now sends its live events to the web app (${tilde(plan.file)}). Start the web app with skillverse run.`)
+    if (known.note) console.log(known.note)
+    if (plan.before !== undefined && !plan.isOwned) console.log(`The previous file is in ${tilde(plan.file)}.skillverse-backup.`)
+  }
+  if (skill.isChanged) console.log(`Type /skillverse in ${label} to see what it has (${tilde(skill.file)}).`)
+  if (skill.isTheirs) console.log(`${tilde(skill.file)} is someone else's skill, so the /skillverse skill was not written.`)
 }
