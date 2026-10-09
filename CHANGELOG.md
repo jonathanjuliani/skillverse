@@ -6,6 +6,16 @@ Add each change under **Unreleased** as you make it; `pnpm version` moves them u
 
 ## [Unreleased]
 
+### Added
+
+- Live activity from other agents: `skillverse setup <agent>` adds Skillverse's hooks to Cursor, Codex, GitHub Copilot (CLI and VS Code), Gemini CLI, Devin, Windsurf, Antigravity or opencode (`--print` to preview, `--undo` to remove), and their skills light up on their planets as they load. `skillverse setup` lists the agents and which are set up.
+- Devin and Antigravity are planets in the web app.
+- Live events carry their **source** agent, and the server numbers the turns of events that come without one.
+
+### Changed
+
+- The 3D graph's skills are bigger and further apart within each agent's cluster.
+
 ## [0.2.4] - 2026-10-09
 
 ## [0.2.3] - 2026-10-08

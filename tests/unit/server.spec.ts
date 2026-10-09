@@ -76,6 +76,35 @@ describe('skillverse-server', () => {
     expect((await request('/../../etc/passwd', { headers: local })).status).not.toBe(200)
   })
 
+  it("keeps an event's source, and numbers the turns of a session whose events come without them", async () => {
+    const session = `hooked-${Date.now()}`
+    const events = [
+      { kind: 'turn', session, source: 'cursor' },
+      { kind: 'skill', skill: 'review', session, source: 'cursor' },
+      { kind: 'turn', session, source: 'cursor' },
+      { kind: 'skill', skill: 'ship', session, source: 'Not An Id!' },
+    ]
+    await request('/events', { method: 'POST', headers: { ...local, 'content-type': 'application/json' }, body: JSON.stringify(events) })
+    const controller = new AbortController()
+    const response = await fetch(`http://localhost:${PORT}/events/stream`, { signal: controller.signal })
+    const reader = response.body?.getReader()
+    if (!reader) throw new Error('the stream has no body')
+    let text = ''
+    while (!text.includes('"skill":"ship"')) text += new TextDecoder().decode((await reader.read()).value)
+    controller.abort()
+    const sent = text
+      .split('\n')
+      .filter(line => line.startsWith('data: '))
+      .map(line => JSON.parse(line.slice(6)))
+      .filter(one => one.session === session)
+    expect(sent.map(one => [one.kind, one.turn, one.source])).toEqual([
+      ['turn', 1, 'cursor'],
+      ['skill', 1, 'cursor'],
+      ['turn', 2, 'cursor'],
+      ['skill', 2, undefined],
+    ])
+  })
+
   it('keeps the stats a session sends with its skills, and ignores stats it does not know', async () => {
     const skill = { id: 'docs', name: 'docs', region: 0, description: '', body: '', chars: 0, links: [], lat: 0, lon: 0, x: 0, y: 0 }
     const region = { label: 'User', color: '#7aa2f7', count: 1, lat: 0, lon: 0, cap: 0.2, x: 0, y: 0 }

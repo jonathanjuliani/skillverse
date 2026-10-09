@@ -13,6 +13,8 @@
 //   POST /skills          {"agent":"claude","data":{...},"stats":{...}}: a session's exact list (and what it
 //                         measured: the new empty session, listing cost, uses), replacing that agent's scan
 //   POST /events          one event or an array: {"kind":"skill","skill":"docs:write","agent":"main","turn":3,"session":"a1b2c3d4","project":"my-app"}
+//                         `source` names the agent it came from (`cursor`; Claude Code's when missing). An event
+//                         without a turn takes its session's: a `turn` event moves the session one turn on.
 //   GET  /events/stream   server-sent events: the last --keep events (marked history), then each new one
 //   GET  /health          {"ok":true,"skillverse":true,"version":"0.1.0","clients":1,"seq":42,"pid":123}
 //
@@ -53,7 +55,21 @@ let seq = 0
 let parts
 let data
 let recent = []
+// The current turn of each session whose events come without one (`skillverse hook`).
+const turns = new Map()
 const clients = new Set()
+
+/** The turn of an event that came without one: a `turn` event starts the session's next. */
+function turnOf(input) {
+  const session = typeof input.session === 'string' ? input.session.slice(0, 200) : ''
+  if (!session) return 0
+  const turn = (turns.get(session) ?? 0) + (input.kind === 'turn' ? 1 : 0)
+  turns.delete(session)
+  turns.set(session, turn)
+  // Keep the newest sessions only.
+  if (turns.size > 500) turns.delete(turns.keys().next().value)
+  return turn
+}
 
 /** Keeps only the fields the page reads, as strings or numbers of sane size. */
 function clean(input) {
@@ -63,10 +79,11 @@ function clean(input) {
     seq: ++seq,
     at: Date.now(),
     kind: input.kind,
-    turn: Number.isFinite(input.turn) ? input.turn : 0,
+    turn: Number.isFinite(input.turn) ? input.turn : turnOf(input),
     agent: text(input.agent) || 'main',
   }
   for (const key of ['skill', 'parent', 'agentType', 'tool', 'session', 'project']) if (text(input[key])) event[key] = text(input[key])
+  if (typeof input.source === 'string' && /^[a-z0-9-]{1,32}$/.test(input.source)) event.source = input.source
   return event
 }
 

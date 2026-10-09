@@ -10,6 +10,11 @@ import { graphData, linkStrength } from './graph-data.js'
 const BACKGROUND = '#04060c'
 const TWIN = '#c4a7ff'
 const SETTLE_MS = 1500
+/** Node size, and the room between nodes: a push that reaches only nearby nodes, so the agents' clusters keep their places. */
+const NODE_SIZE = 5
+const NODE_PUSH = -110
+const PUSH_REACH = 260
+const LINK_LENGTH = 55
 
 const tooltip = i =>
   `<div class="tip"><b>${escapeHtml(skills[i].id)}</b><br><span>${escapeHtml(regions[skills[i].region]?.label || '')}</span></div>`
@@ -25,7 +30,7 @@ export const graph3dView = {
       .showNavInfo(false)
       .graphData(data)
       .nodeId('i')
-      .nodeRelSize(3)
+      .nodeRelSize(NODE_SIZE)
       .nodeVal(n => 1 + neighbours[n.i].size * 0.5 + glowOf(n.i) * 5)
       .nodeColor(n =>
         glowOf(n.i) > 0
@@ -35,7 +40,7 @@ export const graph3dView = {
             : alpha(colorOf(n.i), 0.35),
       )
       .nodeOpacity(0.95)
-      .nodeResolution(14)
+      .nodeResolution(16)
       .nodeLabel(n => tooltip(n.i))
       .linkColor(l =>
         l.isTwin
@@ -62,8 +67,8 @@ export const graph3dView = {
     // Also settle after a moment: a busy or background tab can take long to stop the layout.
     this.startedAt = Date.now()
     setTimeout(() => this.settle(false), SETTLE_MS)
-    graph.d3Force('charge').strength(-45)
-    graph.d3Force('link').strength(linkStrength(data.links))
+    graph.d3Force('charge').strength(NODE_PUSH).distanceMax(PUSH_REACH)
+    graph.d3Force('link').strength(linkStrength(data.links)).distance(LINK_LENGTH)
     graph.d3Force(
       'cluster',
       clusterForce(n => regions[skills[n.i].region].centre3, 0.08),
@@ -152,7 +157,7 @@ export const graph3dView = {
     if (!kit) return
     const scene = this.graph.scene()
     const now = Date.now()
-    const radiusOf = i => Math.cbrt(1 + neighbours[i].size * 0.5 + glowOf(i) * 5) * 3
+    const radiusOf = i => Math.cbrt(1 + neighbours[i].size * 0.5 + glowOf(i) * 5) * NODE_SIZE
 
     // Halos and shockwaves on skills that fired.
     for (const [i] of live.glow) {

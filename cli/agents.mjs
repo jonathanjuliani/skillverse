@@ -346,6 +346,18 @@ function windsurf(c, home) {
   c.servers(readJsonc(path.join(root, 'mcp_config.json'))?.mcpServers, path.join(root, 'mcp_config.json'))
 }
 
+/** Devin's CLI: `~/.config/devin/skills/` (its other folders are Shared's and Windsurf's). */
+function devin(c, home) {
+  c.skills(path.join(home, '.config', 'devin', 'skills'), { source: 'userSettings' })
+}
+
+/** Google Antigravity: the skills its app, IDE and CLI share (`~/.gemini/config/skills/`) and each one's own. */
+function antigravity(c, home) {
+  for (const folder of ['config', 'antigravity', 'antigravity-ide', 'antigravity-cli']) {
+    c.skills(path.join(home, '.gemini', folder, 'skills'), { source: 'userSettings' })
+  }
+}
+
 /** The shared `~/.agents/skills` folder; skills installed with `npx skills` are grouped by the repo they came from. */
 function shared(c, home) {
   const root = path.join(home, '.agents')
@@ -360,8 +372,8 @@ function shared(c, home) {
 
 /**
  * The agents Skillverse knows, in the order their planets are listed. `folder`
- * is where each keeps its files at home; an agent is shown when that folder
- * exists. `notes` says what a scan cannot see for it.
+ * is where each keeps its files at home (or a list of places); an agent is
+ * shown when one exists. `notes` says what a scan cannot see for it.
  */
 export const AGENTS = [
   {
@@ -377,8 +389,15 @@ export const AGENTS = [
   { id: 'copilot', label: 'GitHub Copilot', folder: '.copilot', find: copilot },
   { id: 'opencode', label: 'opencode', folder: '.config/opencode', find: opencode },
   { id: 'windsurf', label: 'Windsurf', folder: '.codeium/windsurf', find: windsurf },
+  { id: 'devin', label: 'Devin', folder: '.config/devin', find: devin },
+  {
+    id: 'antigravity',
+    label: 'Antigravity',
+    folder: ['.gemini/config', '.gemini/antigravity', '.gemini/antigravity-ide', '.gemini/antigravity-cli'],
+    find: antigravity,
+  },
   { id: 'shared', label: 'Shared (.agents)', folder: '.agents', find: shared },
 ]
 
-/** Whether an agent is installed here: its folder at home exists. */
-export const isInstalled = (agent, home) => isDir(path.join(home, agent.folder))
+/** Whether an agent is installed here: its folder (or one of them) at home exists. */
+export const isInstalled = (agent, home) => [agent.folder].flat().some(folder => isDir(path.join(home, folder)))
