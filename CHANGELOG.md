@@ -6,6 +6,8 @@ Add each change under **Unreleased** as you make it; `pnpm version` moves them u
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-10-09
+
 ### Added
 
 - Live activity from other agents: `skillverse setup <agent>` adds Skillverse's hooks to Cursor, Codex, GitHub Copilot (CLI and VS Code), Gemini CLI, Devin, Windsurf, Antigravity or opencode (`--print` to preview, `--undo` to remove), and their skills light up on their planets as they load. `skillverse setup` lists the agents and which are set up.
@@ -100,7 +102,8 @@ First release. Requires Claude Code 2.1.288 or newer (the function-hooks plugin 
 - The web view server listens on `127.0.0.1` only, answers only requests addressed to `localhost`/`127.0.0.1` (no DNS rebinding), and grants no cross-origin access.
 - Nothing leaves the machine except the web view's requests for its graph libraries (jsDelivr, pinned versions).
 
-[Unreleased]: https://github.com/jonathanjuliani/skillverse/compare/v0.2.4...HEAD
+[Unreleased]: https://github.com/jonathanjuliani/skillverse/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/jonathanjuliani/skillverse/compare/v0.2.4...v0.3.0
 [0.2.4]: https://github.com/jonathanjuliani/skillverse/compare/v0.2.3...v0.2.4
 [0.2.3]: https://github.com/jonathanjuliani/skillverse/compare/v0.2.2...v0.2.3
 [0.2.2]: https://github.com/jonathanjuliani/skillverse/compare/v0.2.1...v0.2.2

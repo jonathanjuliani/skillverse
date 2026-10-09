@@ -12,7 +12,7 @@
       "name": "skillverse",
       "source": "./",
       "description": "A tree of every skill grouped by plugin, links between skills, context and token cost, usage counts, and an interactive 3D web view.",
-      "version": "0.2.4",
+      "version": "0.3.0",
       "author": {
         "name": "Jonathan Juliani"
       },
