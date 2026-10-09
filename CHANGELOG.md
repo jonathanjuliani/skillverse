@@ -6,8 +6,6 @@ Add each change under **Unreleased** as you make it; `pnpm version` moves them u
 
 ## [Unreleased]
 
-## [0.3.0] - 2026-10-09
-
 ### Added
 
 - `skillverse summary [--agent <id>] [--json]`: every agent's (or one's) plugins, skills, connectors, categories and context cost as text, from the running web app or a scan. The web app serves it as `GET /summary.json`.
@@ -18,6 +16,10 @@ Add each change under **Unreleased** as you make it; `pnpm version` moves them u
 ### Fixed
 
 - The web view's `?agent=` selects that agent in the switcher and the Agents card, not only on the canvas.
+
+## [0.3.0] - 2026-10-09
+
+### Added
 
 - Live activity from other agents: `skillverse setup <agent>` adds Skillverse's hooks to Cursor, Codex, GitHub Copilot (CLI and VS Code), Gemini CLI, Devin, Windsurf, Antigravity or opencode (`--print` to preview, `--undo` to remove), and their skills light up on their planets as they load. `skillverse setup` lists the agents and which are set up.
 - Devin and Antigravity are planets in the web app.

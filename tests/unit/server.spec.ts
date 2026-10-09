@@ -74,7 +74,8 @@ describe('skillverse-server', () => {
 
   it("serves each agent's summary without the skills, to a local request only", async () => {
     const response = await fetch(`http://localhost:${PORT}/summary.json`)
-    expect(Array.isArray((await response.json()).agents)).toBe(true)
+    const body = (await response.json()) as { agents?: unknown }
+    expect(Array.isArray(body.agents)).toBe(true)
     expect((await request('/summary.json', { headers: { host: `evil.example.com:${PORT}` } })).status).toBe(403)
   })
 
