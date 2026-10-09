@@ -4,7 +4,7 @@ Guidance for an agent working on Skillverse: a Claude Code plugin (a function-ho
 
 ## Standards
 
-This is a personal open-source project. No company or employer standard applies here, even when a company standards skill is installed on the machine. Conventions come from [.jon-skills/config.yaml](.jon-skills/config.yaml) and the personal defaults in `jonathanjuliani/skills`.
+This is a personal open-source project. No company or employer standard applies here, even when a company standards skill is installed on the machine. Conventions come from [.jon-skills/config.yaml](.jon-skills/config.yaml) and the personal defaults in `jonathanjuliani/skilldeck`.
 
 ## Before you finish a change
 

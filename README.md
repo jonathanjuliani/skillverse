@@ -2,11 +2,15 @@
 
 See every skill your AI agents have, how they connect, and what they cost.
 
+Skill files and this session's transcript stay on your machine. The web app listens on `127.0.0.1`. Prompts do not leave the machine. The page loads its graph libraries from jsDelivr. The detail is in [How it works](docs/how-it-works.md).
+
 The plugin and the web app install separately. Use either or both. Pick one plugin route. A marketplace install and a folder both loaded show two buttons.
 
-## Do this
+`npx skills add jonathanjuliani/skillverse` is not available until this repo has a skill.
 
-1. Plugin only, from the marketplace:
+## Install
+
+Plugin, from the marketplace:
 
 ```text
 /plugin marketplace add jonathanjuliani/skillverse
@@ -15,19 +19,15 @@ The plugin and the web app install separately. Use either or both. Pick one plug
 
 Start a new session. The Skillverse button appears above the prompt.
 
-2. Plugin and web app together. This installs `skillverse@skilldeck` when no Skillverse plugin is already installed, and installs `@jonathanjuliani/skillverse` when the web app is missing. It does not start the server.
-
-```bash
-npm i -g @jonathanjuliani/skilldeck
-skilldeck install skillverse
-```
-
-3. Web app alone:
+Web app:
 
 ```bash
 npm i -g @jonathanjuliani/skillverse
 skillverse run
+skillverse open
 ```
+
+Every command is in [Install](docs/install.md).
 
 ## Where it shows
 
@@ -37,11 +37,18 @@ skillverse run
 - **Other agents.** `skillverse setup <agent>` sends Codex, Copilot, Cursor, Gemini CLI, Devin, Windsurf, Antigravity or opencode's activity to the web app, and adds a `/skillverse` skill that prints the agent's summary. `skillverse summary` prints it anywhere.
 - **Editor panel.** The VS Code extension in [`vscode/`](vscode/) shows the web app in a side panel of VS Code, Cursor, Windsurf or Antigravity, on that editor's own agent.
 
+## Release
+
+A release is a tag on `main`. The steps are in [Develop](docs/develop.md).
+
+Engineering skills are in [skilldeck](https://github.com/jonathanjuliani/skilldeck).
+
 ## Read next
 
 - [Install](docs/install.md) — requirements, clone, commands, updating
 - [Use](docs/use.md) — pane, web app, terminal
 - [How it works](docs/how-it-works.md) — what it reads, privacy, limits
 - [Develop](docs/develop.md) — local commands and releasing
+- [Contributing](CONTRIBUTING.md) — plugin, CLI, and docs
 
 MIT, see [LICENSE](LICENSE).

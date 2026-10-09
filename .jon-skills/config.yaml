@@ -9,7 +9,7 @@ repo: skillverse
 # or employer standard applies here, even when a company standards skill is installed
 # on the machine. Resolve every convention from this file and the personal defaults.
 company: none
-personal_defaults: jonathanjuliani/skills (plugin jon), resolve-conventions/defaults.yaml
+personal_defaults: jonathanjuliani/skilldeck (plugin skilldeck), resolve-conventions/defaults.yaml
 
 shape:
   value: single package
