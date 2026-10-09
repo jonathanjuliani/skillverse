@@ -6,6 +6,8 @@ Add each change under **Unreleased** as you make it; `pnpm version` moves them u
 
 ## [Unreleased]
 
+## [0.2.4] - 2026-10-09
+
 ## [0.2.3] - 2026-10-08
 
 ### Fixed
@@ -87,7 +89,8 @@ First release. Requires Claude Code 2.1.288 or newer (the function-hooks plugin 
 - The web view server listens on `127.0.0.1` only, answers only requests addressed to `localhost`/`127.0.0.1` (no DNS rebinding), and grants no cross-origin access.
 - Nothing leaves the machine except the web view's requests for its graph libraries (jsDelivr, pinned versions).
 
-[Unreleased]: https://github.com/jonathanjuliani/skillverse/compare/v0.2.3...HEAD
+[Unreleased]: https://github.com/jonathanjuliani/skillverse/compare/v0.2.4...HEAD
+[0.2.4]: https://github.com/jonathanjuliani/skillverse/compare/v0.2.3...v0.2.4
 [0.2.3]: https://github.com/jonathanjuliani/skillverse/compare/v0.2.2...v0.2.3
 [0.2.2]: https://github.com/jonathanjuliani/skillverse/compare/v0.2.1...v0.2.2
 [0.2.1]: https://github.com/jonathanjuliani/skillverse/compare/v0.2.0...v0.2.1
