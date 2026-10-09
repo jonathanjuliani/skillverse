@@ -17,10 +17,13 @@ Usage:
   skillverse open                            open the web app in the browser (starts it if needed)
   skillverse status                          is it running, and where
   skillverse stop                            stop the web app skillverse run started
+  skillverse setup [<agent>] [--undo] [--print]
+                                             send an agent's live events to the web app (no agent: list them)
+  skillverse hook <agent>                    what an agent's hook runs (setup writes it; reads stdin)
   skillverse --version | --help
 
 The port: --port, else SKILLVERSE_PORT, else the first free one of 4317-4320.
-The Claude Code plugin sends its live events to the web app when it runs.
+The Claude Code plugin sends its live events to the web app when it runs; skillverse setup does it for other agents.
 Log: ${LOG_FILE.replace(os.homedir(), '~')}`
 
 const argv = process.argv.slice(2)
@@ -66,6 +69,14 @@ async function main() {
         `Running at ${server.url}: web app ${server.version}, pid ${server.pid}, ${server.clients} page(s) open, ${server.seq} event(s)`,
       )
       return
+    }
+    case 'hook': {
+      const { runHook } = await import('../cli/hook.mjs')
+      return runHook(argv[1], ports)
+    }
+    case 'setup': {
+      const { setup } = await import('../cli/setup.mjs')
+      return setup(argv[1]?.startsWith('-') ? undefined : argv[1], { isUndo: flag('--undo'), isPrint: flag('--print') })
     }
     case 'stop': {
       const port = await stop()

@@ -39,6 +39,8 @@ The desktop app draws pane text in a proportional font and refuses a tree past 1
 
 It must keep refusing requests whose Host is not `localhost`/`127.0.0.1` and requests from another site's Origin, and keep sending no CORS headers. `tests/unit/server.spec.ts` pins this; do not weaken a test to pass. A new agent to scan goes in `AGENTS` in `cli/agents.mjs` (a function that reads its folders through the collector), with a case in `tests/unit/scan.spec.ts`. Connectors keep only a name and transport: never read a command line, header, environment or key into the page.
 
+An agent's live events: its hook shape goes in `FORMATS` in `cli/hook-events.mjs` (only names leave: never a prompt, file content or command), and where its hooks live in `SETUPS` in `cli/setup.mjs` (only hooks that observe, never permission hooks). Test both with a recorded payload in `tests/unit/hook.spec.ts`. `skillverse hook` must keep printing nothing and exiting 0.
+
 ## When releasing
 
 Add each change under `## [Unreleased]` in [CHANGELOG.md](CHANGELOG.md) as you make it. Release with `pnpm version <patch|minor|major>`, then `git push --follow-tags`. Never change the version in one file by hand: `check-version` fails, and marketplace users only receive a change after a version bump.

@@ -24,7 +24,8 @@ Shared vocabulary for Skillverse. Code, docs and the UI use these words this way
 - **Band**: the row above the prompt that holds the Skillverse button.
 - **Surface**: where Claude Code draws: `terminal`, `desktop`, `vscode` or `mobile`. The pane behaves differently per surface.
 - **Web app**: `skillverse run`; the **Skillverse server** (`server/skillverse-server.mjs`) and the page it serves at `http://localhost:4317` (the **web view**). Installed with npm or a clone, separately from the plugin.
-- **Live events**: what the plugin sends the web app as it happens (a skill loaded, a turn began), shown in the web view's **Live** card.
+- **Live events**: what the plugin sends the web app as it happens (a skill loaded, a turn began), shown in the web view's **Live** card. An event's **source** is the agent it came from (`cursor`; Claude Code's when missing); its `agent` field is the subagent inside the session.
+- **Hook**: `skillverse hook <agent>`, what another agent's shell hook runs to send live events; **setup** (`skillverse setup <agent>`) writes it into the agent's hooks file.
 - **Orbit view**: the web view's default: the Skillverse **star** at the centre and every agent a **planet** on an **orbit** around it; the camera **follows** a planet once you fly to it.
 - **Agents card**: the web view's card where an agent is picked and its costs read; **groups** sit inside each agent's categories.
 - **Planet switcher**: the row of agents over the canvas, with **All** for the whole system; the same choice as the Agents card.

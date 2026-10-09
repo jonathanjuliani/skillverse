@@ -40,12 +40,14 @@ Nothing leaves your machine except the web app's requests for its graph librarie
 - Skillverse reads your skill files and this session's transcript locally. It writes only to `~/.cache/skillverse/`: the skill list for the terminal app, and the web app's pid, port, and log.
 - The web app listens on `127.0.0.1` only, answers only requests addressed to `localhost` or `127.0.0.1` (so a web page cannot reach it by DNS rebinding), and grants no cross-origin access. No other site can read your skills or the live event stream.
 - Live events (which skill loaded, in which turn) are kept in memory only.
+- An agent's hook (`skillverse hook <agent>`) sends only names: a skill's name, the session id, the project folder's name. Never a prompt, a file's content, or a command. It prints nothing and always exits 0, so it cannot block the agent.
+- `skillverse setup` writes only the agent's hooks file, keeps everything else in it, and saves the previous file next to it.
 
 ## Limitations
 
 - The plugin API is early access. See [Requirements](install.md#requirements).
 - On the desktop app the pane cannot draw graphs that take clicks. The graphs live in the web app and the terminal app.
 - The links between skills are inferred from their text. See [Links](#links).
-- Live activity comes from Claude Code sessions only. The other agents' planets show what they have, not their activity. Their costs are estimates.
+- Live activity comes from Claude Code sessions and, after `skillverse setup`, Cursor. Other agents' skills are spotted from a typed `/name` or a `SKILL.md` they read, so a skill the agent applies without reading its file does not show. The other agents' costs are estimates.
 - A connector's tools are listed by its agent when it runs, so what they cost in context is not counted.
 - Claude Code's built-in skills are not on disk. They show once a session with the plugin sends its list. The other agents' folder layouts are read as they are today and may change with their releases.

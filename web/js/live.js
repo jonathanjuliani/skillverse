@@ -1,4 +1,4 @@
-// Live activity: skills firing in Claude Code sessions, the paths between
+// Live activity: skills firing in your agents' sessions, the paths between
 // them, the feed, and the simulator. Events arrive over a stream from the
 // Skillverse server: the last few as history (counted, not animated), then
 // each one as it happens.
@@ -81,7 +81,7 @@ export function ingest(event, isHistory = false) {
   }
   if (event.kind !== 'skill') return
 
-  const i = findSkill(event.skill)
+  const i = findSkill(event.skill, event.source)
   const agent = event.agent || 'main'
   const track = `${session}|${event.turn}|${agent}`
   let from = live.last.get(track)
@@ -94,7 +94,9 @@ export function ingest(event, isHistory = false) {
     }
   }
   if (i < 0) {
-    if (!isHistory) addFeed({ kind: 'skill', name: event.skill, i: -1, from, agent, session })
+    // Named the way the planets' ids are: with the agent's prefix, unless it is Claude Code's.
+    const name = event.source && event.source !== 'claude' ? `${event.source}/${event.skill}` : event.skill
+    if (!isHistory) addFeed({ kind: 'skill', name, i: -1, from, agent, session })
     return
   }
   live.heat.set(i, heatOf(i) + 1)
@@ -168,7 +170,7 @@ export function renderFeed(isNew) {
     return `<li class="ev${flash}"><span class="t">${time(e.at)}</span>${sessionBadge(e)}${agentBadge(e)}<span class="dot" style="background:${color}"></span>${name}${from}</li>`
   })
   const empty = live.isConnected
-    ? 'Skills light up here as Claude Code sessions with the Skillverse plugin load them.'
+    ? 'Skills light up here as your agents load them: Claude Code with the Skillverse plugin, the others after skillverse setup.'
     : 'Not connected to the Skillverse server: live activity needs it running (skillverse run).'
   document.getElementById('feed').innerHTML = rows.join('') || `<li class="ev turn">${empty} Simulate shows the effect.</li>`
   const used = live.heat.size

@@ -6,6 +6,15 @@ Add each change under **Unreleased** as you make it; `pnpm version` moves them u
 
 ## [Unreleased]
 
+### Added
+
+- Live activity from Cursor: `skillverse setup cursor` adds Skillverse's hooks to `~/.cursor/hooks.json` (`--print` to preview, `--undo` to remove), and Cursor's skills light up on its planet as a `/name` prompt or a `SKILL.md` read loads them. `skillverse setup` lists the agents that can be set up.
+- Live events carry their **source** agent, and the server numbers the turns of events that come without one.
+
+### Changed
+
+- The 3D graph's skills are bigger and further apart within each agent's cluster.
+
 ## [0.2.4] - 2026-10-09
 
 ## [0.2.3] - 2026-10-08

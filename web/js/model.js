@@ -98,29 +98,40 @@ export function categoriesOfAgent(agent) {
   })
 }
 
-/** The agent whose sessions send live events: Claude Code's, when it is shown. */
+/** The agent an event without a source came from: Claude Code's, when it is shown. */
 export const LIVE_AGENT = Math.max(
   0,
   agents.findIndex(agent => agent.id === 'claude'),
 )
 
-const byId = new Map()
-const byName = new Map()
+// Per agent: each skill by id (without the agent's prefix) and by name.
+const byId = agents.map(() => new Map())
+const byName = agents.map(() => new Map())
 for (const skill of skills) {
-  if (skill.agent !== LIVE_AGENT) continue
-  byId.set(skill.id.toLowerCase(), skill.i)
+  if (skill.kind === 'mcp') continue
+  const id = skill.id.toLowerCase()
+  const prefix = skill.agent === 0 ? '' : `${agents[skill.agent].id}/`
+  byId[skill.agent].set(id.startsWith(prefix) ? id.slice(prefix.length) : id, skill.i)
   const name = skill.name.toLowerCase()
   // A name two plugins share cannot say which one fired.
-  byName.set(name, byName.has(name) ? -1 : skill.i)
+  byName[skill.agent].set(name, byName[skill.agent].has(name) ? -1 : skill.i)
 }
 
-/** The live agent's skill an event names (`docs:write`, `/write`, `write`), or -1. */
-export function findSkill(name) {
+/** The planet of an event's source (`cursor`), Claude Code's when it has none; -1 for an agent not shown. */
+export function agentOfSource(source) {
+  return source ? agents.findIndex(agent => agent.id === source) : LIVE_AGENT
+}
+
+/** The skill an event names (`docs:write`, `/write`, `write`) on its source's planet, or -1. */
+export function findSkill(name, source) {
+  const agent = agentOfSource(source)
+  if (agent < 0 || !byId[agent]) return -1
   const key = String(name || '')
     .toLowerCase()
     .replace(/^\//, '')
   const short = key.split(':').pop()
-  return byId.get(key) ?? (byName.get(short) >= 0 ? byName.get(short) : -1)
+  const byShort = byName[agent].get(short)
+  return byId[agent].get(key) ?? (byShort >= 0 ? byShort : -1)
 }
 
 const connectorCount = skills.filter(skill => skill.kind === 'mcp').length

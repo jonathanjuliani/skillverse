@@ -35,6 +35,19 @@ The pane shows:
 
 Each planet is split into **Plugins**, **Your skills**, **Built-in**, and **Connectors (MCP)**, and within those into each plugin or group. The Orbit view puts them in one scene: Skillverse is the star at the centre and each agent is a planet orbiting it, sized by what it has (the biggest on the inner orbit). There is also a 3D graph with a cluster per agent and an Obsidian-style 2D graph. A skill installed for several agents is linked across them. When the web app runs, every Claude Code session with the plugin feeds it live activity.
 
+### Live activity from other agents
+
+Other agents send their activity through their own hooks. Set one up once:
+
+```bash
+skillverse setup          # which agents can, and which are set up
+skillverse setup cursor   # adds Skillverse's hooks to ~/.cursor/hooks.json
+```
+
+`--print` shows the file it would write without writing it, and `--undo` removes exactly Skillverse's entries. The rest of the file is kept, and the old one is saved next to it as `hooks.json.skillverse-backup`. Run it from a global install (`npm i -g`) or a clone, not `npx`: the hook calls this copy of Skillverse by its full path, and so the Node it ran with. After switching Node versions or moving a clone, run `skillverse setup cursor` again.
+
+Only Claude Code reports which skill loaded. For other agents a skill shows when a prompt starts with `/name` or when the agent reads a skill's `SKILL.md`. Supported today: **Cursor** (the editor and its CLI). More are planned in [agent-adapters.md](plans/agent-adapters.md).
+
 ## The terminal app
 
 **Tab** globe · graph · tree, **arrows** or drag to spin, **+/-** or the wheel to zoom, click a skill or **Enter** on the one under ⌖, **1–9** follow a link, **[ ]** step through links, **b** back, **/** search, **space** pause, **q** quit.
