@@ -6,6 +6,17 @@ Add each change under **Unreleased** as you make it; `pnpm version` moves them u
 
 ## [Unreleased]
 
+### Added
+
+- `skillverse summary [--agent <id>] [--json]`: every agent's (or one's) plugins, skills, connectors, categories and context cost as text, from the running web app or a scan. The web app serves it as `GET /summary.json`.
+- A `/skillverse` skill for other agents, added by `skillverse setup <agent>`: it prints that agent's summary.
+- `skillverse --agent <id>`: the terminal app for another agent's skills.
+- The web view's `?embed=1` for narrow panels, and a VS Code extension (`vscode/`) that shows it in a side panel of VS Code, Cursor, Windsurf or Antigravity, on the editor's own agent.
+
+### Fixed
+
+- The web view's `?agent=` selects that agent in the switcher and the Agents card, not only on the canvas.
+
 ## [0.3.0] - 2026-10-09
 
 ### Added

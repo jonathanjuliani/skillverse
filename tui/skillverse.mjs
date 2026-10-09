@@ -1,9 +1,11 @@
 #!/usr/bin/env node
 // Skillverse for the terminal: an animated braille globe (or 2D graph, or
-// tree) of the skills your Claude Code session has, with a reading panel.
+// tree) of the skills your Claude Code session has, or another agent's, with
+// a reading panel.
 //
 //   node tui/skillverse.mjs                 the session's skills (from the plugin's skillverse.json)
 //   node tui/skillverse.mjs --scan          scan the disk instead
+//   node tui/skillverse.mjs --agent codex   another agent's skills, from its folders (codex, cursor, gemini, …)
 //   node tui/skillverse.mjs --snapshot 140x40 [--frames 40] [--mode graph] [--select docs:write]
 //                                      print one frame and exit (no keyboard)
 //
@@ -15,13 +17,18 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 
-import { scanSkills } from '../cli/scan.mjs'
+import { AGENTS, scanSkills, shape, skillsOf } from '../cli/scan.mjs'
 
 // ---- data ---------------------------------------------------------------
 
 const CACHE = path.join(os.homedir(), '.cache', 'skillverse', 'skillverse.json')
 
-function loadData(args) {
+function loadData(args, agent) {
+  if (agent && agent !== 'claude') {
+    const known = AGENTS.find(one => one.id === agent)
+    if (!known) throw new Error(`no agent ${agent}; these are: ${AGENTS.map(one => one.id).join(', ')}`)
+    return { data: shape(skillsOf(agent)), from: `a scan of ${known.label}'s folders` }
+  }
   if (!args.has('--scan')) {
     try {
       return { data: JSON.parse(fs.readFileSync(CACHE, 'utf8')), from: 'your Claude Code session' }
@@ -939,9 +946,21 @@ function main() {
     const at = process.argv.indexOf(name)
     return at >= 0 ? process.argv[at + 1] : undefined
   }
-  const { data, from } = loadData(args)
+  const agent = value('--agent')
+  let loaded
+  try {
+    loaded = loadData(args, agent)
+  } catch (error) {
+    console.error(`skillverse: ${error.message}`)
+    process.exit(2)
+  }
+  const { data, from } = loaded
   if (!data.skills?.length) {
-    console.error('No skills found. Open the Skillverse pane once in Claude Code (it saves skillverse.json), or run with --scan.')
+    console.error(
+      agent && agent !== 'claude'
+        ? `No skills found in ${agent}'s folders.`
+        : 'No skills found. Open the Skillverse pane once in Claude Code (it saves skillverse.json), or run with --scan.',
+    )
     process.exit(1)
   }
   const brain = createBrain(data, from)

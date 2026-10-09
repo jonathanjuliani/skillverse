@@ -41,6 +41,10 @@ It must keep refusing requests whose Host is not `localhost`/`127.0.0.1` and req
 
 An agent's live events: its hook shape goes in `FORMATS` in `cli/hook-events.mjs` (only names leave: never a prompt, file content or command), and where its hooks live in `SETUPS` in `cli/setup.mjs` (only hooks that observe, never permission hooks). Test both with a recorded payload in `tests/unit/hook.spec.ts`. `skillverse hook` must keep printing nothing and exiting 0.
 
+## When changing the VS Code extension
+
+`vscode/` is its own package: plain CommonJS, no dependencies, no build. Logic without `vscode` goes in `vscode/lib.js`, tested in `tests/unit/vscode.spec.ts`. It only shows the web app (`?embed=1`); it never serves or scans. Its version is its own, outside `pnpm version`. `pnpm run vscode:package` checks the manifest and builds the `.vsix`.
+
 ## When releasing
 
 Add each change under `## [Unreleased]` in [CHANGELOG.md](CHANGELOG.md) as you make it. Release with `pnpm version <patch|minor|major>`, then `git push --follow-tags`. Never change the version in one file by hand: `check-version` fails, and marketplace users only receive a change after a version bump.

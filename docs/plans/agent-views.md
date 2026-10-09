@@ -1,6 +1,6 @@
 # Plan: Skillverse inside every agent
 
-Status: **planned**; after [agent-events.md](agent-events.md), and alongside [agent-adapters.md](agent-adapters.md). Third of three.
+Status: **parts 1–4 built** (branch `feat/agent-views`); the extension is not yet published, and status lines and an MCP App are later. Third of three.
 
 ## Goal
 

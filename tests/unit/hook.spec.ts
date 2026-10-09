@@ -11,7 +11,7 @@ import { promptSkill, skillFileIn, toEvents } from '../../cli/hook-events.mjs'
 // @ts-expect-error: a plain ES module without types (cli/ is JavaScript)
 import { health } from '../../cli/server.mjs'
 // @ts-expect-error: a plain ES module without types (cli/ is JavaScript)
-import { hookCommand, isNpxCache, planSetup, setupStatus } from '../../cli/setup.mjs'
+import { hookCommand, isNpxCache, planSetup, planSkill, setupStatus, skillFile } from '../../cli/setup.mjs'
 
 // What Cursor sends its hooks (cursor.com/docs/agent/hooks), trimmed to the fields read.
 const cursor = {
@@ -278,6 +278,21 @@ describe('setup', () => {
     const opencode = planSetup('opencode', { home, hookModule: '/opt/skillverse/cli/hook.mjs' })
     expect(opencode.after).toContain('"/opt/skillverse/cli/hook.mjs"')
     expect(opencode.after).toContain("'tool.execute.before'")
+  })
+
+  it('puts the /skillverse skill where each agent reads it, once, and leaves a skill that is not its own', () => {
+    expect(skillFile('cursor', home)).toBe(path.join(home, '.cursor', 'skills', 'skillverse', 'SKILL.md'))
+    expect(skillFile('codex', home)).toBe(path.join(home, '.agents', 'skills', 'skillverse', 'SKILL.md'))
+    const codex = planSkill('codex', { home })
+    expect(codex.after).toContain('name: skillverse')
+    expect(codex.after).toContain('summary --agent <id>')
+    write(codex)
+    expect(planSkill('gemini', { home }).isChanged).toBe(false)
+    // The shared copy stays while another agent that reads it is set up, and goes with the last one.
+    expect(planSkill('codex', { home, isUndo: true, othersSetUp: ['gemini'] }).isChanged).toBe(false)
+    expect(planSkill('codex', { home, isUndo: true, othersSetUp: ['cursor'] }).after).toBeNull()
+    fs.writeFileSync(codex.file, '---\nname: skillverse\n---\nMine')
+    expect(planSkill('codex', { home })).toMatchObject({ isChanged: false, isTheirs: true })
   })
 
   it('knows the npx cache', () => {
