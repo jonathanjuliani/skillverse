@@ -6,6 +6,10 @@ Add each change under **Unreleased** as you make it; `pnpm version` moves them u
 
 ## [Unreleased]
 
+### Added
+
+- The README lists `skillverse setup` for Cursor, Codex, Copilot, Gemini CLI, Devin, Windsurf, Antigravity and opencode.
+
 ## [0.3.1] - 2026-10-09
 
 ### Fixed
