@@ -4,10 +4,31 @@
 // the open agent in the Agents card show the same block.
 
 import { escapeHtml, formatTokens } from './lib.js'
-import { agentCost, agents, CATEGORIES, categoriesOfAgent } from './model.js'
+import { agentCost, agents, CATEGORIES, categoriesOfAgent, skills, twinPairs } from './model.js'
+import { CATEGORY_COLORS, tintOf } from './palette.js'
 
-/** The colour each category is drawn in (hooks/layout.ts CATEGORY_COLORS). */
-const CATEGORY_COLORS = { plugins: '#7aa2f7', user: '#9ece6a', builtin: '#e0af68', mcp: '#bb9af7', org: '#7dcfff', project: '#ff9e64' }
+/** How many skills an agent shares with each other agent (twins), most first. */
+export function sharesOf(a) {
+  const counts = new Map()
+  for (const [x, y] of twinPairs) {
+    const [p, q] = [skills[x].agent, skills[y].agent]
+    if (p === q || (p !== a && q !== a)) continue
+    const other = p === a ? q : p
+    counts.set(other, (counts.get(other) ?? 0) + 1)
+  }
+  return [...counts].map(([agent, count]) => ({ agent, count })).sort((x, y) => y.count - x.count)
+}
+
+/** "Shares 8 with Codex · 5 with Cursor", each agent with its tint; nothing when it shares nothing. */
+export function sharesLine(a) {
+  const list = sharesOf(a)
+  if (!list.length) return ''
+  const parts = list.map(
+    ({ agent, count }) =>
+      `<span class="share"><span class="dot" style="background:${tintOf(agents[agent])}"></span>${count} with ${escapeHtml(agents[agent].label)}</span>`,
+  )
+  return `<p class="sum-shares">Shares ${parts.join(' · ')}</p>`
+}
 
 const figures = list =>
   `<dl class="sum-figures">${list.map(([value, label]) => `<div><dd>${value}</dd><dt>${label}</dt></div>`).join('')}</dl>`
@@ -38,6 +59,7 @@ export function agentSummary(a, { isCompact = false } = {}) {
       [summary.connectors, 'connectors'],
     ]),
     bars(categoriesOfAgent(a).map(category => ({ label: category.label, count: category.count, color: CATEGORY_COLORS[category.id] }))),
+    sharesLine(a),
   ]
   if (isCompact) return parts.join('')
   if (spend.baseline)
@@ -62,7 +84,7 @@ export function allSummary() {
   const perAgent = agents.map((agent, a) => {
     const spend = agentCost(a)
     const tokens = agent.summary.skills ? ` · ${spend.isMeasured ? '' : '≈'}${formatTokens(spend.listing)} tok` : ''
-    return `<div class="sum-agent"><span class="label">${escapeHtml(agent.label)}</span><span class="value">${agent.count ? `${agent.count}${tokens}` : 'nothing found'}</span></div>`
+    return `<div class="sum-agent"><span class="label"><span class="dot" style="background:${tintOf(agent)}"></span>${escapeHtml(agent.label)}</span><span class="value">${agent.count ? `${agent.count}${tokens}` : 'nothing found'}</span></div>`
   })
   const measured = agents.findIndex((_, a) => agentCost(a).baseline)
   return [

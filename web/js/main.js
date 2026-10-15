@@ -6,16 +6,19 @@ import { CDN, isNarrow, loadScript } from './lib.js'
 import { clearLive, connect, live, liveHooks, renderFeed, simulate, tickLive } from './live.js'
 import { agents, skills, summary } from './model.js'
 import { renderPanel } from './panel.js'
+import { paintSky } from './sky.js'
 import { actions, state } from './state.js'
 import { graph2dView } from './views/graph2d.js'
 import { graph3dView } from './views/graph3d.js'
+import { multiverseView } from './views/multiverse.js'
 import { orbitView } from './views/orbit.js'
 
-const views = { orbit: orbitView, '3d': graph3dView, '2d': graph2dView }
+const views = { orbit: orbitView, '3d': graph3dView, '2d': graph2dView, multiverse: multiverseView }
 const HINTS = {
   orbit: 'drag to orbit · scroll to zoom · click a planet to follow it · Esc, 0 or double-click for every planet',
   '3d': 'drag to orbit · scroll to zoom · click a skill',
   '2d': 'drag to pan · scroll to zoom · click a skill',
+  multiverse: 'drag to orbit · click a universe to fly in · a wormhole to see what two agents share · Esc or 0 to fly out',
 }
 /** Remembered per browser: folded cards and Follow activity. Storage may be off; the page works without it. */
 /** `?embed=1`: the page sits in an editor's side panel (the VS Code extension). */
@@ -46,6 +49,7 @@ async function show(view) {
   state.view = view
   for (const button of document.querySelectorAll('#views button')) button.setAttribute('aria-pressed', String(button.dataset.view === view))
   $('hint').textContent = HINTS[view]
+  $('motion').hidden = view !== 'multiverse' && view !== 'orbit'
   for (const [name, v] of Object.entries(views)) {
     $(`view-${name}`).classList.toggle('active', name === view)
     // A view out of sight is freed (its WebGL context, geometry and loop), not kept paused.
@@ -61,7 +65,7 @@ async function show(view) {
       await v.init($(`view-${view}`))
       v.ready = true
     } catch (error) {
-      $('loading').textContent = `${error.message}. This view loads its library from the internet.`
+      $('loading').textContent = error.isWebGL ? `${error.message}.` : `${error.message}. This view loads its library from the internet.`
       return
     }
     $('loading').classList.remove('on')
@@ -233,6 +237,18 @@ function setupLive() {
     live.only = event.currentTarget.value
     clearLive()
   })
+  // Motion: slow drift and spin, on by default; remembered in this browser.
+  const motion = $('motion')
+  const setMotion = isOn => {
+    state.motion = isOn
+    motion.setAttribute('aria-pressed', String(isOn))
+  }
+  setMotion(readPrefs()?.motion !== false)
+  motion.addEventListener('click', () => {
+    setMotion(!state.motion)
+    writePrefs({ ...(readPrefs() ?? {}), motion: state.motion })
+    actions.refresh()
+  })
   // Follow activity: on by default; the choice is remembered in this browser.
   const follow = $('live-follow')
   const setFollowing = isOn => {
@@ -329,6 +345,8 @@ document.querySelector('.skip').addEventListener('click', event => {
 // ---- Start ----------------------------------------------------------------
 
 $('stats').textContent = summary
+// The night sky behind the bar and the graphs; Orbit draws the same one in its scene.
+paintSky(document.body)
 renderAgentsCard()
 // The agent the address asks for (?agent=codex), before the cards and the view are drawn.
 const params = new URLSearchParams(location.search)

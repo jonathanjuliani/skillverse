@@ -6,6 +6,7 @@
 
 import { escapeHtml, formatTokens } from './lib.js'
 import { agentCost, agents, categoriesOfAgent, colorOf, regionName, skills } from './model.js'
+import { tintOf } from './palette.js'
 import { state } from './state.js'
 import { agentSummary } from './summary.js'
 
@@ -80,7 +81,7 @@ export function renderAgentsCard() {
     const cost = agentCost(a)
     return `<div class="agent${isOpen ? ' is-open' : ''}">
       <button class="agent-row" data-agent="${a}" aria-expanded="${isOpen}">
-        <span class="agent-name">${escapeHtml(agent.label)}</span>
+        <span class="dot" style="background:${tintOf(agent)}"></span><span class="agent-name">${escapeHtml(agent.label)}</span>
         <span class="count">${rowSummary(agent, cost)}</span>
       </button>
       ${isOpen ? details(a) : ''}
@@ -95,10 +96,12 @@ export function renderAgentsCard() {
 function renderPlanetNav() {
   const nav = document.getElementById('planets')
   if (!nav) return
-  const button = (value, label, isOn, key) =>
-    `<button data-agent="${value}" aria-pressed="${isOn}" title="${escapeHtml(label)}${key ? ` (key ${key})` : ''}">${escapeHtml(label)}</button>`
+  const button = (value, label, isOn, key, agent) =>
+    `<button data-agent="${value}" aria-pressed="${isOn}" title="${escapeHtml(label)}${key ? ` (key ${key})` : ''}">${
+      agent ? `<span class="dot" style="background:${tintOf(agent)}"></span>` : ''
+    }${escapeHtml(label)}${agent ? ` <span class="count">${agent.count}</span>` : ''}</button>`
   nav.innerHTML = [
     button('all', 'All', state.agent === 'all', '0 or Esc'),
-    ...agents.map((agent, a) => button(a, agent.label, state.agent === a, a < 9 ? a + 1 : '')),
+    ...agents.map((agent, a) => button(a, agent.label, state.agent === a, a < 9 ? a + 1 : '', agent)),
   ].join('')
 }

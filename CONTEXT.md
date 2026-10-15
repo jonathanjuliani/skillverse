@@ -28,6 +28,7 @@ Shared vocabulary for Skillverse. Code, docs and the UI use these words this way
 - **Summary command**: `skillverse summary`, an agent's summary as text; the **`/skillverse` skill** runs it inside any agent.
 - **Embed**: the web view at `?embed=1`, trimmed for an editor's side panel; the **VS Code extension** (`vscode/`) shows it.
 - **Hook**: `skillverse hook <agent>`, what another agent's shell hook runs to send live events; **install** (`skillverse install`) writes it into the agent's hooks file, and **remove** (`skillverse remove`) takes it back.
+- **Multiverse view**: each agent a **universe** (a bubble with its skills as a galaxy), and a **wormhole** between two agents that share skills; the Shared folder is the cluster between them.
 - **Orbit view**: the web view's default: the Skillverse **star** at the centre and every agent a **planet** on an **orbit** around it; the camera **follows** a planet once you fly to it.
 - **Agents card**: the web view's card where an agent is picked and its costs read; **groups** sit inside each agent's categories.
 - **Planet switcher**: the row of agents over the canvas, with **All** for the whole system; the same choice as the Agents card.

@@ -4,11 +4,10 @@
 import { alpha, CDN, clusterForce, escapeHtml, loadScript, mixHex } from '../lib.js'
 import { COMET_MS, glowOf, heatOf, live, TRAIL_MS } from '../live.js'
 import { agents, colorOf, neighbours, regions, skills } from '../model.js'
+import { TWIN, tintOf } from '../palette.js'
 import { actions, isLitLink, isRelated, state } from '../state.js'
 import { graphData, linkStrength } from './graph-data.js'
 
-const BACKGROUND = '#04060c'
-const TWIN = '#c4a7ff'
 const SETTLE_MS = 1500
 /** Node size, and the room between nodes: a push that reaches only nearby nodes, so the agents' clusters keep their places. */
 const NODE_SIZE = 5
@@ -26,7 +25,8 @@ export const graph3dView = {
     const data = graphData(3)
     const graph = window
       .ForceGraph3D()(el)
-      .backgroundColor(BACKGROUND)
+      // Transparent: the page's sky (sky.js) shows through.
+      .backgroundColor('rgba(0,0,0,0)')
       .showNavInfo(false)
       .graphData(data)
       .nodeId('i')
@@ -43,13 +43,7 @@ export const graph3dView = {
       .nodeResolution(16)
       .nodeLabel(n => tooltip(n.i))
       .linkColor(l =>
-        l.isTwin
-          ? isLitLink(l.pair)
-            ? TWIN
-            : 'rgba(196,167,255,0.14)'
-          : isLitLink(l.pair)
-            ? colorOf(l.pair[0])
-            : 'rgba(140,155,190,0.22)',
+        l.isTwin ? (isLitLink(l.pair) ? l.tint : alpha(l.tint, 0.14)) : isLitLink(l.pair) ? colorOf(l.pair[0]) : 'rgba(140,155,190,0.22)',
       )
       .linkWidth(l => (isLitLink(l.pair) ? 1.4 : 0))
       .linkOpacity(0.5)
@@ -86,6 +80,7 @@ export const graph3dView = {
         ? agents.map(agent => {
             const tag = document.createElement('div')
             tag.className = 'agent-tag'
+            tag.style.setProperty('--tint', tintOf(agent))
             tag.textContent = agent.label
             this.labels.appendChild(tag)
             return tag
@@ -203,7 +198,7 @@ export const graph3dView = {
       const b = this.nodes[p.to]
       if (a.x === undefined || b.x === undefined) continue
       const age = now - p.at
-      const color = p.isBranch ? '#c4a7ff' : colorOf(p.from)
+      const color = p.isBranch ? TWIN : colorOf(p.from)
       let fx = this.fx.trails.get(key)
       if (!fx) {
         const points = this.curve(a, b, 48)

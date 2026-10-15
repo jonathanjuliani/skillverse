@@ -11,6 +11,8 @@ export const state = {
   hover: -1,
   matches: new Set(),
   history: [],
+  /** Slow drift and spin in the views that have them (Motion in the canvas tools); off with reduced motion too. */
+  motion: true,
 }
 
 export const actions = {

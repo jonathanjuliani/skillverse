@@ -4,11 +4,10 @@
 import { alpha, CDN, clusterForce, loadScript } from '../lib.js'
 import { COMET_MS, glowOf, live, TRAIL_MS } from '../live.js'
 import { agents, colorOf, neighbours, regions, skills } from '../model.js'
+import { TWIN, tintOf } from '../palette.js'
 import { actions, isLitLink, isRelated, state } from '../state.js'
 import { graphData, linkStrength } from './graph-data.js'
 
-const BACKGROUND = '#04060c'
-const TWIN = '#c4a7ff'
 const SETTLE_MS = 1500
 
 /** Each agent's name above its part of the graph, when there are several. */
@@ -25,10 +24,10 @@ function drawAgentNames(ctx, scale, nodes) {
   ctx.textAlign = 'center'
   ctx.textBaseline = 'bottom'
   ctx.font = `700 ${16 / scale}px ui-sans-serif, -apple-system, sans-serif`
-  ctx.fillStyle = 'rgba(229,231,235,0.55)'
   for (const [a, agent] of agents.entries()) {
     const b = box[a]
     if (b.left === Number.POSITIVE_INFINITY) continue
+    ctx.fillStyle = alpha(tintOf(agent), 0.75)
     ctx.fillText(agent.label, (b.left + b.right) / 2, b.top - 24 / scale)
   }
 }
@@ -42,9 +41,9 @@ function drawLive2d(ctx, scale, nodes) {
     const a = nodes[p.from],
       b = nodes[p.to]
     if (!a || !b || a.x === undefined) continue
-    const color = p.isBranch ? '#c4a7ff' : colorOf(p.from)
+    const color = p.isBranch ? TWIN : colorOf(p.from)
     ctx.save()
-    ctx.strokeStyle = alpha(color.startsWith('#') ? color : '#c4a7ff', age < COMET_MS ? 0.55 : 0.28)
+    ctx.strokeStyle = alpha(color.startsWith('#') ? color : TWIN, age < COMET_MS ? 0.55 : 0.28)
     ctx.lineWidth = 1.6 / scale
     if (p.isBranch) ctx.setLineDash([4 / scale, 3 / scale])
     ctx.beginPath()
@@ -57,7 +56,7 @@ function drawLive2d(ctx, scale, nodes) {
         y = a.y + (b.y - a.y) * t
       const glow = ctx.createRadialGradient(x, y, 0, x, y, 9 / scale)
       glow.addColorStop(0, '#ffffff')
-      glow.addColorStop(0.35, alpha(color.startsWith('#') ? color : '#c4a7ff', 0.8))
+      glow.addColorStop(0.35, alpha(color.startsWith('#') ? color : TWIN, 0.8))
       glow.addColorStop(1, 'rgba(0,0,0,0)')
       ctx.fillStyle = glow
       ctx.beginPath()
@@ -94,7 +93,8 @@ export const graph2dView = {
     const data = graphData(2)
     const graph = window
       .ForceGraph()(el)
-      .backgroundColor(BACKGROUND)
+      // Transparent: the page's sky (sky.js) shows through.
+      .backgroundColor('rgba(0,0,0,0)')
       .graphData(data)
       .nodeId('i')
       .nodeRelSize(4)
@@ -127,7 +127,7 @@ export const graph2dView = {
           ctx.font = `${(i === state.selected ? 13 : 11) / scale}px ui-sans-serif, -apple-system, sans-serif`
           ctx.textAlign = 'center'
           ctx.textBaseline = 'top'
-          ctx.fillStyle = i === state.selected || i === state.hover ? '#fff' : 'rgba(229,231,235,.85)'
+          ctx.fillStyle = i === state.selected || i === state.hover ? '#fff' : 'rgba(192,202,245,.85)'
           ctx.fillText(skills[i].name, n.x, n.y + radius + 2 / scale)
         }
       })
@@ -138,7 +138,7 @@ export const graph2dView = {
         ctx.fill()
       })
       .linkColor(l => {
-        if (l.isTwin) return isLitLink(l.pair) ? alpha(TWIN, 0.8) : 'rgba(196,167,255,0.08)'
+        if (l.isTwin) return alpha(l.tint, isLitLink(l.pair) ? 0.8 : 0.1)
         if (isLitLink(l.pair)) return alpha(colorOf(l.pair[0]), 0.9)
         return state.hover >= 0 || state.selected >= 0 ? 'rgba(120,130,160,0.07)' : 'rgba(120,130,160,0.22)'
       })

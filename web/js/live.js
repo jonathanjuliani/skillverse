@@ -4,7 +4,8 @@
 // each one as it happens.
 
 import { escapeHtml } from './lib.js'
-import { colorOf, findSkill, LIVE_AGENT, neighbours, skills } from './model.js'
+import { agents, findSkill, LIVE_AGENT, neighbours, skills } from './model.js'
+import { tintOf } from './palette.js'
 import { actions } from './state.js'
 
 export const GLOW_MS = 7000
@@ -149,7 +150,7 @@ export function renderFeed(isNew) {
   const time = d => d.toTimeString().slice(0, 8)
   const sessionBadge = e => {
     if (live.sessions.size < 2 || !e.session) return ''
-    return `<span class="session" style="background:${sessionColor(e.session)}" title="session ${escapeHtml(e.session)}">${escapeHtml(live.sessions.get(e.session) || e.session)}</span>`
+    return `<span class="session" style="--session:${sessionColor(e.session)}" title="session ${escapeHtml(e.session)}">${escapeHtml(live.sessions.get(e.session) || e.session)}</span>`
   }
   const agentBadge = e => {
     if (!e.agent || e.agent === 'main') return ''
@@ -161,13 +162,15 @@ export function renderFeed(isNew) {
     if (e.kind === 'turn') return `<li class="ev turn${flash}">new turn</li>`
     if (e.kind === 'agent')
       return `<li class="ev${flash}"><span class="t">${time(e.at)}</span>${sessionBadge(e)}<span class="subagent">${escapeHtml(e.type || 'subagent')}</span><span class="from">subagent started</span></li>`
-    const color = e.i >= 0 ? colorOf(e.i) : '#6b7280'
+    // The dot is the agent the skill fired in, so a glance tells which agent is busy.
+    const agent = e.i >= 0 ? agents[skills[e.i].agent] : undefined
+    const color = agent ? tintOf(agent) : 'var(--muted)'
     const from = e.from !== undefined && e.from >= 0 ? `<span class="from">← ${escapeHtml(skills[e.from].name)}</span>` : ''
     const name =
       e.i >= 0
         ? `<button class="name" data-skill="${e.i}">${escapeHtml(e.name)}</button>`
         : `<span class="name">${escapeHtml(e.name)}</span>`
-    return `<li class="ev${flash}"><span class="t">${time(e.at)}</span>${sessionBadge(e)}${agentBadge(e)}<span class="dot" style="background:${color}"></span>${name}${from}</li>`
+    return `<li class="ev${flash}"><span class="t">${time(e.at)}</span>${sessionBadge(e)}${agentBadge(e)}<span class="dot" style="background:${color}"${agent ? ` title="${escapeHtml(agent.label)}"` : ''}></span>${name}${from}</li>`
   })
   const empty = live.isConnected
     ? 'Skills light up here as your agents load them: Claude Code with the Skillverse plugin, the others after skillverse setup.'

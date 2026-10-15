@@ -1,20 +1,26 @@
-/* Skillverse web view. Dark only: the views draw on a night sky. Wide screens
-   float three cards over a full-bleed canvas; phones (760px and less) keep
-   the canvas whole and put the cards in one bottom sheet, one at a time. */
+/* Skillverse web view. Dark only: the views draw on a night sky (js/sky.js),
+   with lavender text, soft translucent cards, a tint for each agent and lilac
+   for anything in more than one agent. Wide screens float three cards over a
+   full-bleed canvas; phones (760px and less) keep the canvas whole and put the
+   cards in one bottom sheet, one at a time. Colours in js/palette.js match. */
 
 :root {
   --bg: #04060c;
-  --surface: rgba(11, 15, 26, 0.88);
-  --surface-solid: #0b0f1a;
-  --raised: #111827;
-  --line: #1f2937;
-  --text: #e5e7eb;
-  --muted: #8b95a7;
+  /* Opaque enough to read without a blur: a blur over a canvas that redraws is recomputed every frame. */
+  --surface: rgba(13, 17, 29, 0.9);
+  --surface-solid: #0d111d;
+  --raised: rgba(160, 175, 220, 0.07);
+  --line: rgba(160, 175, 220, 0.16);
+  --text: #c0caf5;
+  --muted: #7a83a6;
   --accent: #7aa2f7;
   --on-accent: #0b1020;
   --live: #f43f5e;
   --twin: #c4a7ff;
+  --select: #c4a7ff;
   --radius: 8px;
+  --radius-card: 12px;
+  --blur: 10px;
   --mono: ui-monospace, SFMono-Regular, Menlo, monospace;
   --gap: 12px;
   --bar: 52px;
@@ -29,7 +35,8 @@ html,
 body {
   margin: 0;
   height: 100%;
-  background: var(--bg);
+  /* sky.js paints the sky here too, behind the translucent bar. */
+  background: var(--bg) center / cover no-repeat;
   color: var(--text);
   overflow: hidden;
 }
@@ -61,6 +68,14 @@ button {
 code {
   font-size: 0.92em;
 }
+/* A colour dot: a category, a group or an agent's tint. */
+.dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  flex: none;
+  display: inline-block;
+}
 
 /* ---- Top bar ------------------------------------------------------------ */
 .bar {
@@ -73,7 +88,9 @@ code {
   gap: 10px;
   padding: 0 var(--gap);
   border-bottom: 1px solid var(--line);
-  background: linear-gradient(180deg, #0a0f1d, #05070e);
+  background: rgba(6, 9, 18, 0.62);
+  backdrop-filter: blur(var(--blur));
+  -webkit-backdrop-filter: blur(var(--blur));
 }
 .brand {
   display: flex;
@@ -87,8 +104,14 @@ code {
   height: 18px;
   border-radius: 50%;
   flex: none;
-  background: radial-gradient(circle at 35% 35%, #c7d6ff, var(--accent) 45%, #2c3f7a 75%);
-  box-shadow: 0 0 10px rgba(122, 162, 247, 0.6);
+  /* A small iridescent bubble, like the Multiverse view's universes. */
+  background:
+    radial-gradient(circle at 34% 30%, rgba(255, 255, 255, 0.85), transparent 28%),
+    radial-gradient(circle, transparent 52%, rgba(4, 6, 12, 0.35) 53%, transparent 72%),
+    conic-gradient(from 200deg, #ff9e64, #f7768e, #c4a7ff, #7aa2f7, #73daca, #c3e88d, #ff9e64);
+  box-shadow:
+    0 0 12px rgba(196, 167, 255, 0.55),
+    inset 0 0 4px rgba(255, 255, 255, 0.4);
 }
 .segmented {
   display: flex;
@@ -108,8 +131,9 @@ code {
   white-space: nowrap;
 }
 .segmented button[aria-pressed="true"] {
-  background: var(--accent);
-  color: var(--on-accent);
+  background: rgba(196, 167, 255, 0.14);
+  box-shadow: inset 0 0 0 1px var(--select);
+  color: var(--text);
   font-weight: 600;
 }
 .search {
@@ -205,8 +229,9 @@ code {
   font-size: 12px;
 }
 .canvas-tools .toggle[aria-pressed="true"] {
-  border-color: var(--accent);
-  color: var(--accent);
+  border-color: var(--select);
+  color: var(--text);
+  box-shadow: inset 0 0 0 1px var(--select);
 }
 .canvas-tools .toggle[aria-pressed="false"] {
   color: var(--muted);
@@ -242,11 +267,21 @@ code {
   text-shadow: 0 0 6px rgba(0, 0, 0, 0.9);
   letter-spacing: 0.03em;
 }
+.planet-name small {
+  display: block;
+  text-align: center;
+  font-weight: 400;
+  font-size: 11px;
+  letter-spacing: 0;
+  color: var(--muted);
+}
 .planet-name.is-centre {
   color: #ffd98a;
 }
 .planet-name.is-followed {
-  color: var(--accent);
+  text-decoration: underline;
+  text-decoration-color: var(--select);
+  text-underline-offset: 4px;
 }
 .orbit-tip {
   position: absolute;
@@ -255,8 +290,8 @@ code {
   font-size: 13px;
   line-height: 1.4;
   padding: 12px 14px;
-  border-radius: 10px;
-  background: rgba(13, 17, 28, 0.94);
+  border-radius: var(--radius-card);
+  background: var(--surface);
   border: 1px solid var(--line);
   box-shadow: 0 12px 32px rgba(0, 0, 0, 0.5);
   width: max-content;
@@ -264,6 +299,25 @@ code {
 }
 .orbit-tip:has(.sum-figures) {
   width: 320px;
+}
+/* A card kept open with a click (a wormhole's skills): its chips take clicks. */
+.orbit-tip.is-pinned {
+  pointer-events: auto;
+}
+/* ?perf=1: what the Multiverse view is drawing, and at what cost. */
+.perf {
+  position: absolute;
+  top: calc(var(--gap) + 40px);
+  right: var(--gap);
+  z-index: 3;
+  margin: 0;
+  padding: 8px 10px;
+  border-radius: var(--radius);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  font: 11px / 1.5 var(--mono);
+  white-space: pre;
+  pointer-events: none;
 }
 .orbit-tip span {
   color: var(--muted);
@@ -347,6 +401,27 @@ code {
 }
 .sum-agent .label {
   color: var(--text);
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+.sum-agent .dot,
+.sum-shares .dot {
+  width: 7px;
+  height: 7px;
+}
+.sum-shares {
+  margin: 8px 0 0;
+  color: var(--muted);
+  font-size: 12.5px;
+  line-height: 1.6;
+}
+.share {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--text);
+  white-space: nowrap;
 }
 .sum-agent .value {
   font-family: var(--mono);
@@ -392,23 +467,32 @@ code {
 .planet-nav button {
   pointer-events: auto;
   flex: none;
-  padding: 6px 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 11px;
   border-radius: 999px;
   border: 1px solid var(--line);
-  background: rgba(13, 17, 28, 0.8);
-  color: var(--muted);
-  font-size: 13px;
+  background: var(--surface);
+  color: var(--text);
+  font-size: 12.5px;
   white-space: nowrap;
+}
+.planet-nav .dot {
+  width: 8px;
+  height: 8px;
+}
+.planet-nav .count {
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
 }
 .planet-nav button:hover,
 .planet-nav button:focus-visible {
-  color: var(--text);
-  border-color: var(--muted);
+  border-color: rgba(196, 167, 255, 0.5);
 }
 .planet-nav button[aria-pressed="true"] {
-  color: var(--text);
-  border-color: var(--accent);
-  background: rgba(122, 162, 247, 0.18);
+  border-color: var(--select);
+  box-shadow: inset 0 0 0 1px var(--select);
 }
 .category-tag {
   position: absolute;
@@ -444,7 +528,8 @@ code {
 .agent-tag {
   font-weight: 700;
   font-size: 15px;
-  color: rgba(229, 231, 235, 0.6);
+  color: var(--tint, var(--muted));
+  opacity: 0.8;
 }
 .tip {
   padding: 4px 6px;
@@ -477,10 +562,8 @@ code {
 .card {
   position: relative;
   background: var(--surface);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
   border: 1px solid var(--line);
-  border-radius: var(--radius);
+  border-radius: var(--radius-card);
   display: flex;
   flex-direction: column;
   min-height: 0;
@@ -505,8 +588,10 @@ code {
   outline-offset: -2px;
 }
 .card-title {
+  font-size: 11.5px;
   font-weight: 650;
-  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
 }
 .card-meta {
   margin-left: auto;
@@ -654,7 +739,9 @@ body.is-live .live-dot {
   padding: 1px 6px;
   border-radius: 999px;
   flex: none;
-  color: var(--on-accent);
+  /* An outline, so the session does not compete with the agent's dot. */
+  color: var(--session);
+  border: 1px solid var(--session);
   font-weight: 600;
   max-width: 90px;
   overflow: hidden;
@@ -676,14 +763,12 @@ body.is-live .live-dot {
   text-align: center;
 }
 .ev.new {
-  animation: flash 1.2s ease-out;
+  animation: rise 0.4s ease-out;
 }
-@keyframes flash {
+@keyframes rise {
   from {
-    background: rgba(122, 162, 247, 0.35);
-  }
-  to {
-    background: transparent;
+    opacity: 0;
+    transform: translateY(4px);
   }
 }
 
@@ -712,13 +797,6 @@ body.is-live .live-dot {
   margin-left: auto;
   color: var(--muted);
   font-variant-numeric: tabular-nums;
-}
-.dot {
-  width: 9px;
-  height: 9px;
-  border-radius: 50%;
-  flex: none;
-  display: inline-block;
 }
 
 /* ---- Agents card ---------------------------------------------------------- */
@@ -750,6 +828,10 @@ body.is-live .live-dot {
 }
 .agent-name {
   font-weight: 600;
+}
+.agent-row .dot {
+  width: 8px;
+  height: 8px;
 }
 .agent-row .count {
   margin-left: auto;
@@ -912,6 +994,14 @@ button.stat-row:focus-visible {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+/* A wormhole's or the Shared folder's skills, in the Multiverse view's card. */
+.orbit-tip .chips {
+  margin-top: 8px;
+}
+.orbit-tip .chip {
+  cursor: pointer;
+  color: var(--text);
 }
 .tag {
   color: var(--twin);

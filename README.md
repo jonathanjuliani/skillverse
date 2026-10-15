@@ -54,7 +54,7 @@ skillverse install
 ## Where it shows
 
 - **Pane.** The Claude Code plugin, a mod of function hooks that draws its own UI. A Skillverse button opens a tree of this session's skills, what they cost, and which ones loaded.
-- **Web app.** A page on localhost for every agent on the machine: orbit, a 3D graph, and a 2D graph.
+- **Web app.** A page on localhost for every agent on the machine: orbit, a 3D graph, a 2D graph, and a multiverse of what your agents share.
 - **Terminal app.** `/sv-it` is a full-screen globe, graph, and tree. `skillverse --agent codex` shows another agent's.
 - **Other agents.** The install above sends their activity to the web app and adds a `/skillverse` skill that prints that agent's summary. `skillverse summary` prints it anywhere.
 - **Editor panel.** The VS Code extension in [`vscode/`](vscode/) shows the web app in a side panel of VS Code, Cursor, Windsurf or Antigravity, on that editor's own agent.

@@ -18,6 +18,7 @@
     <button data-view="orbit" aria-pressed="true" title="Every agent in one scene: planets on orbits">Orbit</button>
     <button data-view="3d" aria-pressed="false">3D</button>
     <button data-view="2d" aria-pressed="false">2D</button>
+    <button data-view="multiverse" aria-pressed="false" title="Each agent a universe, with wormholes where agents share skills">Multiverse</button>
   </div>
   <div class="search" id="search-box">
     <input id="search" type="search" placeholder="Find a skill" autocomplete="off" aria-label="Find a skill">
@@ -31,10 +32,12 @@
   <div class="view" id="view-orbit"></div>
   <div class="view" id="view-3d"></div>
   <div class="view" id="view-2d"></div>
+  <div class="view" id="view-multiverse"></div>
   <div id="loading" role="status">Loading view…</div>
   <nav id="planets" class="planet-nav" aria-label="Go to an agent's planet, or all of them"></nav>
   <div class="canvas-tools">
     <span id="hint"></span>
+    <button id="motion" class="toggle" aria-pressed="true" title="Slow drift and spin. Off: nothing moves until you do" hidden>Motion</button>
     <button id="live-follow" class="toggle" aria-pressed="true" title="When skills load, fly the camera to each one. Off: the camera stays where you put it, and the activity still shows">Follow activity</button>
     <button id="fit" title="Frame everything shown (or the selected skill)">Fit</button>
   </div>

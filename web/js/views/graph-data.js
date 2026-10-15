@@ -1,7 +1,12 @@
 // What the 3D and 2D graphs share: nodes placed near their region (and their
 // agent's cluster), the links, and how strongly each link pulls.
 
+import { mixHex } from '../lib.js'
 import { agents, pairs, regions, skills, twinPairs } from '../model.js'
+import { tintOf } from '../palette.js'
+
+/** A twin link's colour: halfway between its two agents' tints. */
+const twinTint = ([a, b]) => mixHex(tintOf(agents[skills[a].agent]), tintOf(agents[skills[b].agent]), 0.5)
 
 /** How far apart the agents' clusters sit in 3D. */
 const AGENT_SPACING = 900
@@ -69,7 +74,7 @@ export function graphData(dimensions) {
   })
   const links = [
     ...pairs.map(([a, b]) => ({ source: a, target: b, pair: [a, b] })),
-    ...twinPairs.map(([a, b]) => ({ source: a, target: b, pair: [a, b], isTwin: true })),
+    ...twinPairs.map(([a, b]) => ({ source: a, target: b, pair: [a, b], isTwin: true, tint: twinTint([a, b]) })),
   ]
   return { nodes, links }
 }

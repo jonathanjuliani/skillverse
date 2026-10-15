@@ -1,0 +1,667 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Skillverse Multiverse</title>
+<style>
+  :root {
+    --bg: #04060c;
+    --panel: rgba(13, 17, 29, 0.78);
+    --line: rgba(160, 175, 220, 0.16);
+    --text: #c0caf5;
+    --muted: #7a83a6;
+    --accent: #c4a7ff;
+    font-family: ui-sans-serif, -apple-system, 'Inter', system-ui, sans-serif;
+  }
+  html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text); overflow: hidden; }
+  canvas { display: block; touch-action: none; }
+  #top { position: fixed; top: 12px; left: 16px; right: 16px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; pointer-events: none; z-index: 4; }
+  #top > * { pointer-events: auto; }
+  .brand { font-weight: 600; font-size: 14px; letter-spacing: 0.02em; }
+  .brand small { color: var(--muted); font-weight: 400; margin-left: 6px; }
+  #pills { display: flex; gap: 6px; flex-wrap: wrap; }
+  .pill { background: var(--panel); border: 1px solid var(--line); color: var(--text); border-radius: 999px; padding: 5px 11px 5px 9px; font: inherit; font-size: 12px; cursor: pointer; display: flex; gap: 6px; align-items: center; backdrop-filter: blur(8px); }
+  .pill:hover { border-color: rgba(196, 167, 255, 0.5); }
+  .pill[aria-pressed='true'] { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+  .pill .dot { width: 8px; height: 8px; border-radius: 50%; }
+  .pill .n { color: var(--muted); }
+  .card { position: fixed; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; backdrop-filter: blur(10px); font-size: 12.5px; line-height: 1.45; z-index: 5; }
+  #tip { display: none; width: 280px; pointer-events: none; }
+  #tip.pinned { pointer-events: auto; }
+  #tip h3 { margin: 0 0 6px; font-size: 14px; display: flex; align-items: center; gap: 7px; }
+  #tip .dot { width: 9px; height: 9px; border-radius: 50%; flex: none; }
+  .figs { display: flex; gap: 14px; margin: 4px 0 8px; }
+  .figs b { display: block; font-size: 17px; font-weight: 600; }
+  .figs span { color: var(--muted); font-size: 11px; }
+  .bar { display: grid; grid-template-columns: 10px 84px 1fr 26px; gap: 6px; align-items: center; font-size: 11.5px; margin: 2px 0; }
+  .bar .meter { height: 5px; border-radius: 3px; background: rgba(255, 255, 255, 0.06); overflow: hidden; }
+  .bar .meter i { display: block; height: 100%; border-radius: 3px; }
+  .bar .v { text-align: right; color: var(--muted); }
+  .note { color: var(--muted); margin-top: 8px; font-size: 11.5px; }
+  .chips { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
+  .chips span { border: 1px solid var(--line); border-radius: 6px; padding: 1px 6px; font-size: 11px; font-family: ui-monospace, Menlo, monospace; }
+  #live { left: 16px; bottom: 16px; width: 270px; }
+  #live h4, #legend h4 { margin: 0 0 6px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); font-weight: 600; display: flex; justify-content: space-between; align-items: center; }
+  #live button { background: none; border: 1px solid var(--line); color: var(--text); border-radius: 6px; font: inherit; font-size: 11px; padding: 1px 7px; cursor: pointer; text-transform: none; letter-spacing: 0; }
+  #log { list-style: none; margin: 0; padding: 0; min-height: 84px; }
+  #log li { display: flex; gap: 7px; align-items: center; padding: 2px 0; font-size: 12px; animation: in 0.4s ease; }
+  #log li .dot { width: 7px; height: 7px; border-radius: 50%; flex: none; }
+  #log li code { font-family: ui-monospace, Menlo, monospace; font-size: 11.5px; }
+  #log li small { color: var(--muted); margin-left: auto; }
+  @keyframes in { from { opacity: 0; transform: translateY(4px); } }
+  #legend { right: 16px; bottom: 16px; }
+  #legend div { display: flex; align-items: center; gap: 7px; font-size: 11.5px; margin: 2px 0; }
+  #legend .dot { width: 8px; height: 8px; border-radius: 50%; }
+  #legend .worm { width: 18px; height: 3px; border-radius: 2px; background: linear-gradient(90deg, #ff9e64, #7dcfff); }
+  #hint { position: fixed; left: 50%; bottom: 18px; transform: translateX(-50%); color: var(--muted); font-size: 12px; pointer-events: none; z-index: 3; transition: opacity 0.4s; }
+  .label { position: fixed; transform: translate(-50%, -100%); font-size: 12px; font-weight: 600; pointer-events: none; white-space: nowrap; text-shadow: 0 0 8px #000, 0 0 2px #000; z-index: 2; }
+  .label small { display: block; text-align: center; font-weight: 400; color: var(--muted); font-size: 10.5px; }
+  @media (max-width: 760px) {
+    #live, #hint { display: none; }
+    #legend { left: 16px; right: 16px; display: flex; flex-wrap: wrap; gap: 4px 12px; }
+    #legend h4 { width: 100%; }
+    #tip { left: 16px !important; right: 16px; top: auto !important; bottom: 110px; width: auto; }
+  }
+</style>
+<script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+    }
+  }
+</script>
+</head>
+<body>
+<header id="top">
+  <div class="brand">Skillverse <small>Multiverse · mockup (made-up data)</small></div>
+  <nav id="pills" aria-label="Universes"></nav>
+</header>
+<div id="tip" class="card" role="status"></div>
+<section id="live" class="card" aria-label="Live">
+  <h4>Live <button id="sim" aria-pressed="true">Simulating</button></h4>
+  <ul id="log"></ul>
+</section>
+<section id="legend" class="card" aria-label="Legend"></section>
+<div id="hint">Drag to orbit · click a universe to fly in · 0–9 to jump · Esc to fly out</div>
+<div id="labels"></div>
+
+<script type="module">
+import * as THREE from 'three'
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
+import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js'
+import { RenderPass } from 'three/addons/postprocessing/RenderPass.js'
+import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js'
+import { OutputPass } from 'three/addons/postprocessing/OutputPass.js'
+
+// ---------- Mock data, shaped like the scan ----------
+const CATS = [
+  { id: 'plugins', label: 'Plugins', color: '#7aa2f7' },
+  { id: 'user', label: 'Your skills', color: '#9ece6a' },
+  { id: 'builtin', label: 'Built-in', color: '#e0af68' },
+  { id: 'mcp', label: 'Connectors', color: '#bb9af7' },
+  { id: 'org', label: 'Organization', color: '#7dcfff' },
+]
+const AGENTS = [
+  { id: 'claude', label: 'Claude Code', tint: '#ff9e64', counts: { plugins: 46, user: 12, builtin: 9, mcp: 8, org: 12 } },
+  { id: 'codex', label: 'Codex', tint: '#7dcfff', counts: { plugins: 6, user: 8, builtin: 5, mcp: 3, org: 0 } },
+  { id: 'cursor', label: 'Cursor', tint: '#bb9af7', counts: { plugins: 3, user: 5, builtin: 4, mcp: 2, org: 0 } },
+  { id: 'gemini', label: 'Gemini CLI', tint: '#7aa2f7', counts: { plugins: 0, user: 3, builtin: 2, mcp: 1, org: 0 } },
+  { id: 'copilot', label: 'GitHub Copilot', tint: '#a9b1d6', counts: { plugins: 0, user: 0, builtin: 0, mcp: 0, org: 0 } },
+]
+const TWINS = [['claude', 'codex', 8], ['claude', 'cursor', 5], ['codex', 'cursor', 3], ['claude', 'gemini', 2], ['codex', 'gemini', 1]]
+const SHARED = { names: ['caveman', 'grill-me', 'handoff', 'tdd', 'zoom-out', 'to-prd'], readers: ['claude', 'codex', 'gemini'] }
+
+let seed = 7
+const rng = () => {
+  seed |= 0; seed = (seed + 0x6d2b79f5) | 0
+  let t = Math.imul(seed ^ (seed >>> 15), 1 | seed)
+  t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t
+  return ((t ^ (t >>> 14)) >>> 0) / 4294967296
+}
+const gauss = () => (rng() + rng() + rng() - 1.5) / 1.5
+const VERBS = ['review', 'deploy', 'triage', 'lint', 'debug', 'scope', 'draft', 'sync', 'audit', 'test', 'plan', 'ship', 'trace', 'index', 'format', 'migrate', 'explain', 'design']
+const NOUNS = ['pr', 'docs', 'api', 'schema', 'flags', 'release', 'logs', 'ui', 'tokens', 'deps', 'perf', 'data', 'cards', 'notes', 'forms', 'tests', 'infra', 'copy']
+const used = new Set()
+const freshName = () => {
+  for (;;) {
+    const name = `${VERBS[Math.floor(rng() * VERBS.length)]}-${NOUNS[Math.floor(rng() * NOUNS.length)]}`
+    if (!used.has(name)) { used.add(name); return name }
+  }
+}
+
+const byId = Object.fromEntries(AGENTS.map((a, i) => [a.id, i]))
+for (const a of AGENTS) a.skills = []
+for (const a of AGENTS) for (const c of CATS) for (let k = 0; k < a.counts[c.id]; k++) a.skills.push({ name: freshName(), cat: c.id, twins: [] })
+for (const [x, y, n] of TWINS) {
+  for (let k = 0; k < n; k++) {
+    const name = freshName()
+    const cat = k % 3 === 0 ? 'plugins' : 'user'
+    AGENTS[byId[x]].skills.push({ name, cat, twins: [y] })
+    AGENTS[byId[y]].skills.push({ name, cat, twins: [x] })
+  }
+}
+for (const a of AGENTS) {
+  a.n = a.skills.length
+  a.R = a.n ? 7 + Math.sqrt(a.n) * 1.5 : 3.4
+  a.byCat = Object.fromEntries(CATS.map(c => [c.id, a.skills.filter(s => s.cat === c.id).length]))
+}
+const shared = (x, y) => TWINS.find(([a, b]) => (a === x && b === y) || (a === y && b === x))?.[2] ?? 0
+
+// ---------- Layout: agents that share more sit closer ----------
+const P = AGENTS.map(() => new THREE.Vector3(gauss() * 60, gauss() * 20, gauss() * 60))
+for (let it = 0; it < 900; it++) {
+  for (let i = 0; i < AGENTS.length; i++) {
+    for (let j = i + 1; j < AGENTS.length; j++) {
+      const s = shared(AGENTS[i].id, AGENTS[j].id)
+      const target = AGENTS[i].R + AGENTS[j].R + (s ? 8 + 34 / (1 + s * 0.45) : 52)
+      const d = P[i].distanceTo(P[j]) || 0.01
+      if (!s && d > target) continue
+      const push = P[j].clone().sub(P[i]).multiplyScalar(((d - target) / d) * 0.04)
+      P[i].add(push); P[j].sub(push)
+    }
+  }
+  for (const p of P) { p.multiplyScalar(0.998); p.y *= 0.99 }
+}
+const centroid = P.reduce((c, p) => c.add(p), new THREE.Vector3()).divideScalar(P.length)
+for (const p of P) p.sub(centroid)
+const extent = Math.max(...P.map((p, i) => p.length() + AGENTS[i].R))
+
+// ---------- Renderer, scene, camera ----------
+const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches
+const isSmall = () => innerWidth < 760
+const renderer = new THREE.WebGLRenderer({ antialias: true })
+renderer.setPixelRatio(Math.min(devicePixelRatio, isSmall() ? 1.5 : 2))
+renderer.setSize(innerWidth, innerHeight)
+document.body.prepend(renderer.domElement)
+const scene = new THREE.Scene()
+const camera = new THREE.PerspectiveCamera(50, innerWidth / innerHeight, 0.1, 5000)
+const HOME_POS = new THREE.Vector3(0, extent * 0.55, extent * 1.9)
+camera.position.copy(HOME_POS).multiplyScalar(1.8)
+const controls = new OrbitControls(camera, renderer.domElement)
+controls.enableDamping = true
+controls.dampingFactor = 0.06
+controls.minDistance = 1
+controls.maxDistance = extent * 5
+controls.autoRotate = !reduceMotion
+controls.autoRotateSpeed = 0.25
+
+const composer = new EffectComposer(renderer)
+composer.addPass(new RenderPass(scene, camera))
+const bloom = new UnrealBloomPass(new THREE.Vector2(innerWidth, innerHeight), 0.85, 0.55, 0.08)
+composer.addPass(bloom)
+composer.addPass(new OutputPass())
+
+const uniforms = { uTime: { value: 0 } }
+const pointScale = () => (innerHeight * renderer.getPixelRatio()) / (2 * Math.tan(THREE.MathUtils.degToRad(25)))
+
+// ---------- Background: nebula + starfield ----------
+const NOISE = /* glsl */ `
+  float hash(vec3 p){ p = fract(p*0.3183099+.1); p*=17.0; return fract(p.x*p.y*p.z*(p.x+p.y+p.z)); }
+  float noise(vec3 x){ vec3 i=floor(x); vec3 f=fract(x); f=f*f*(3.-2.*f);
+    return mix(mix(mix(hash(i),hash(i+vec3(1,0,0)),f.x),mix(hash(i+vec3(0,1,0)),hash(i+vec3(1,1,0)),f.x),f.y),
+               mix(mix(hash(i+vec3(0,0,1)),hash(i+vec3(1,0,1)),f.x),mix(hash(i+vec3(0,1,1)),hash(i+vec3(1,1,1)),f.x),f.y),f.z); }
+  float fbm(vec3 p){ float v=0., a=.5; for(int i=0;i<5;i++){ v+=a*noise(p); p*=2.03; a*=.5; } return v; }`
+scene.add(new THREE.Mesh(
+  new THREE.SphereGeometry(2500, 48, 32),
+  new THREE.ShaderMaterial({
+    side: THREE.BackSide, depthWrite: false,
+    vertexShader: `varying vec3 vDir; void main(){ vDir = normalize(position); gl_Position = projectionMatrix*modelViewMatrix*vec4(position,1.); }`,
+    fragmentShader: `${NOISE}
+      varying vec3 vDir;
+      void main(){
+        float a = fbm(vDir*2.2), b = fbm(vDir*4.0+7.0);
+        vec3 col = vec3(0.012,0.016,0.04);
+        col += vec3(0.16,0.06,0.26)*smoothstep(0.5,0.85,a)*0.55;
+        col += vec3(0.03,0.12,0.2)*smoothstep(0.55,0.9,b)*0.5;
+        gl_FragColor = vec4(col,1.);
+      }`,
+  }),
+))
+{
+  const n = 5000, pos = new Float32Array(n * 3), col = new Float32Array(n * 3)
+  for (let i = 0; i < n; i++) {
+    const v = new THREE.Vector3(gauss(), gauss(), gauss()).normalize().multiplyScalar(900 + rng() * 900)
+    pos.set([v.x, v.y, v.z], i * 3)
+    const c = new THREE.Color().setHSL(0.58 + rng() * 0.12, 0.4, 0.55 + rng() * 0.4)
+    col.set([c.r, c.g, c.b], i * 3)
+  }
+  const g = new THREE.BufferGeometry()
+  g.setAttribute('position', new THREE.BufferAttribute(pos, 3))
+  g.setAttribute('color', new THREE.BufferAttribute(col, 3))
+  scene.add(new THREE.Points(g, new THREE.PointsMaterial({ size: 1.3, sizeAttenuation: false, vertexColors: true, transparent: true, opacity: 0.75, depthWrite: false })))
+}
+
+// ---------- A soft glow texture for cores and pulses ----------
+const glowTexture = (() => {
+  const c = document.createElement('canvas'); c.width = c.height = 128
+  const ctx = c.getContext('2d'), g = ctx.createRadialGradient(64, 64, 0, 64, 64, 64)
+  g.addColorStop(0, 'rgba(255,255,255,1)'); g.addColorStop(0.25, 'rgba(255,255,255,0.45)'); g.addColorStop(1, 'rgba(255,255,255,0)')
+  ctx.fillStyle = g; ctx.fillRect(0, 0, 128, 128)
+  return new THREE.CanvasTexture(c)
+})()
+const glow = (color, scale, opacity = 1) => {
+  const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTexture, color, blending: THREE.AdditiveBlending, depthWrite: false, transparent: true, opacity }))
+  s.scale.setScalar(scale)
+  return s
+}
+
+// ---------- Universes: membrane + galaxy ----------
+const MEMBRANE = {
+  vertexShader: `
+    varying vec3 vN, vV, vP;
+    void main(){ vec4 mv = modelViewMatrix*vec4(position,1.); vN = normalize(normalMatrix*normal); vV = normalize(-mv.xyz); vP = normalize(position); gl_Position = projectionMatrix*mv; }`,
+  fragmentShader: `
+    uniform vec3 uTint; uniform float uTime, uHover, uRippleT, uLevel; uniform vec3 uRippleDir;
+    varying vec3 vN, vV, vP;
+    void main(){
+      float fres = pow(1. - abs(dot(normalize(vN), normalize(vV))), 2.6);
+      vec3 irid = 0.5 + 0.5*cos(6.2832*(fres*0.9 + uTime*0.03 + vP.y*0.25 + vec3(0.,0.33,0.67)));
+      vec3 col = mix(uTint, irid, 0.38);
+      float age = uTime - uRippleT;
+      float ring = 0.;
+      if (age > 0. && age < 2.2) { float d = distance(vP, uRippleDir); ring = exp(-pow((d - age*1.1)*9., 2.)) * (1. - age/2.2); }
+      float a = (fres*0.85 + 0.035) * uLevel * (1. + uHover*0.9) + ring*1.4;
+      gl_FragColor = vec4(col*a, a);
+    }`,
+}
+const STARS = {
+  vertexShader: `
+    attribute float aSize, aFlare; attribute vec3 color;
+    uniform float uScale; varying vec3 vC; varying float vF;
+    void main(){ vec4 mv = modelViewMatrix*vec4(position,1.); vC = color; vF = aFlare;
+      gl_PointSize = min(72., aSize*(1. + aFlare*3.)*uScale / -mv.z); gl_Position = projectionMatrix*mv; }`,
+  fragmentShader: `
+    varying vec3 vC; varying float vF;
+    void main(){ float d = length(gl_PointCoord - .5); float a = smoothstep(.5, 0., d); float core = smoothstep(.18, 0., d);
+      vec3 c = mix(vC, vec3(1.), core*.55 + vF*.6); gl_FragColor = vec4(c*a*(1. + vF*2.2), a); }`,
+}
+const starMaterial = () => new THREE.ShaderMaterial({ ...STARS, uniforms: { uScale: { value: pointScale() } }, blending: THREE.AdditiveBlending, depthWrite: false, transparent: true })
+
+const bubbles = []
+const universes = AGENTS.map((a, i) => {
+  const group = new THREE.Group()
+  group.position.copy(P[i])
+  scene.add(group)
+  const mat = new THREE.ShaderMaterial({
+    ...MEMBRANE, side: THREE.DoubleSide, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
+    uniforms: { uTime: uniforms.uTime, uTint: { value: new THREE.Color(a.tint) }, uHover: { value: 0 }, uRippleT: { value: -10 }, uRippleDir: { value: new THREE.Vector3(0, 1, 0) }, uLevel: { value: a.n ? 1 : 0.55 } },
+  })
+  const bubble = new THREE.Mesh(new THREE.SphereGeometry(a.R, 72, 48), mat)
+  bubble.userData = { type: 'agent', i }
+  group.add(bubble)
+  bubbles.push(bubble)
+
+  const tilt = new THREE.Group()
+  tilt.rotation.set(gauss() * 0.35, 0, gauss() * 0.35)
+  const spin = new THREE.Group()
+  tilt.add(spin); group.add(tilt)
+  const u = { a, group, bubble, mat, spin, stars: null, flare: null, index: {} }
+  if (!a.n) return u
+
+  spin.add(glow(a.tint, a.R * 0.55, 0.55))
+  spin.add(glow('#ffffff', a.R * 0.16, 0.9))
+  const present = CATS.filter(c => a.byCat[c.id])
+  const arm = Object.fromEntries(present.map((c, k) => [c.id, (k / present.length) * Math.PI * 2]))
+  const place = (cat, spread, inner) => {
+    const r = a.R * (inner + 0.6 * Math.sqrt(rng()))
+    const th = arm[cat] + (r / a.R) * 4.2 + gauss() * spread
+    return [Math.cos(th) * r, gauss() * a.R * 0.05 * (1.1 - r / a.R), Math.sin(th) * r]
+  }
+  // Stars: one per skill, hit-testable.
+  const n = a.n, pos = new Float32Array(n * 3), col = new Float32Array(n * 3), size = new Float32Array(n), flare = new Float32Array(n)
+  a.skills.forEach((s, k) => {
+    pos.set(place(s.cat, 0.32, 0.12), k * 3)
+    const c = new THREE.Color(CATS.find(c => c.id === s.cat).color)
+    if (s.twins.length) c.lerp(new THREE.Color('#ffffff'), 0.35)
+    col.set([c.r, c.g, c.b], k * 3)
+    size[k] = s.twins.length ? 1.25 : 0.85
+    u.index[s.name] = k
+  })
+  const g = new THREE.BufferGeometry()
+  g.setAttribute('position', new THREE.BufferAttribute(pos, 3))
+  g.setAttribute('color', new THREE.BufferAttribute(col, 3))
+  g.setAttribute('aSize', new THREE.BufferAttribute(size, 1))
+  g.setAttribute('aFlare', new THREE.BufferAttribute(flare, 1))
+  u.stars = new THREE.Points(g, starMaterial())
+  u.stars.userData = { type: 'stars', i }
+  u.flare = flare
+  spin.add(u.stars)
+  // Dust: the arms' glow, not interactive.
+  const d = Math.round(140 + n * 9), dp = new Float32Array(d * 3), dc = new Float32Array(d * 3), ds = new Float32Array(d), df = new Float32Array(d)
+  for (let k = 0; k < d; k++) {
+    const s = a.skills[k % n]
+    dp.set(place(s.cat, 0.55, 0.05), k * 3)
+    const c = new THREE.Color(CATS.find(c => c.id === s.cat).color).multiplyScalar(0.32 + rng() * 0.25)
+    dc.set([c.r, c.g, c.b], k * 3)
+    ds[k] = 0.25 + rng() * 0.3
+  }
+  const dg = new THREE.BufferGeometry()
+  dg.setAttribute('position', new THREE.BufferAttribute(dp, 3))
+  dg.setAttribute('color', new THREE.BufferAttribute(dc, 3))
+  dg.setAttribute('aSize', new THREE.BufferAttribute(ds, 1))
+  dg.setAttribute('aFlare', new THREE.BufferAttribute(df, 1))
+  spin.add(new THREE.Points(dg, starMaterial()))
+  return u
+})
+
+// ---------- Wormholes: one per pair of agents that share skills ----------
+const WORM = {
+  vertexShader: `varying vec2 vUv; varying vec3 vN, vV; void main(){ vUv = uv; vec4 mv = modelViewMatrix*vec4(position,1.); vN = normalize(normalMatrix*normal); vV = normalize(-mv.xyz); gl_Position = projectionMatrix*mv; }`,
+  fragmentShader: `
+    uniform vec3 uA, uB; uniform float uTime, uHover;
+    varying vec2 vUv; varying vec3 vN, vV;
+    void main(){
+      float rim = pow(1. - abs(dot(vN, vV)), 1.6);
+      float flow = fract(vUv.x*7. - uTime*0.35);
+      float band = smoothstep(0., .15, flow)*smoothstep(1., .45, flow);
+      float ends = smoothstep(0., .08, vUv.x)*smoothstep(1., .92, vUv.x);
+      vec3 c = mix(uA, uB, vUv.x);
+      float a = (0.12 + band*0.38 + rim*0.35) * (0.75 + uHover*1.2) * ends;
+      gl_FragColor = vec4(c*a, a);
+    }`,
+}
+const worms = TWINS.map(([x, y, n]) => {
+  const i = byId[x], j = byId[y], A = AGENTS[i], B = AGENTS[j]
+  const dir = P[j].clone().sub(P[i]).normalize()
+  const pa = P[i].clone().addScaledVector(dir, A.R * 0.82), pb = P[j].clone().addScaledVector(dir, -B.R * 0.82)
+  const len = pa.distanceTo(pb)
+  const side = new THREE.Vector3().crossVectors(dir, new THREE.Vector3(0, 1, 0)).normalize()
+  const mid = pa.clone().lerp(pb, 0.5).addScaledVector(side, len * 0.12 * (rng() > 0.5 ? 1 : -1)).add(new THREE.Vector3(0, len * 0.1, 0))
+  const curve = new THREE.CatmullRomCurve3([pa, mid, pb])
+  const mat = new THREE.ShaderMaterial({
+    ...WORM, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide,
+    uniforms: { uTime: uniforms.uTime, uA: { value: new THREE.Color(A.tint) }, uB: { value: new THREE.Color(B.tint) }, uHover: { value: 0 } },
+  })
+  const mesh = new THREE.Mesh(new THREE.TubeGeometry(curve, 96, 0.3 + Math.sqrt(n) * 0.28, 14, false), mat)
+  const names = A.skills.filter(s => s.twins.includes(y)).map(s => s.name)
+  mesh.userData = { type: 'worm', i, j, n, names }
+  scene.add(mesh)
+  return { mesh, mat, curve, i, j, names }
+})
+
+// ---------- Shared skills (~/.agents): a cluster in the space between ----------
+const sharedHub = (() => {
+  const readers = SHARED.readers.map(id => byId[id])
+  const c = readers.reduce((v, i) => v.add(P[i]), new THREE.Vector3()).divideScalar(readers.length).add(new THREE.Vector3(0, extent * 0.42, 0))
+  const group = new THREE.Group(); group.position.copy(c); scene.add(group)
+  group.add(glow('#c4a7ff', 9, 0.5))
+  const n = 70, pos = new Float32Array(n * 3), col = new Float32Array(n * 3), size = new Float32Array(n), fl = new Float32Array(n)
+  for (let k = 0; k < n; k++) {
+    const v = new THREE.Vector3(gauss(), gauss(), gauss()).multiplyScalar(k < 6 ? 1.6 : 3.2)
+    pos.set([v.x, v.y, v.z], k * 3)
+    const cc = new THREE.Color('#d6c8ff').multiplyScalar(k < 6 ? 1 : 0.35)
+    col.set([cc.r, cc.g, cc.b], k * 3)
+    size[k] = k < 6 ? 1.2 : 0.3
+  }
+  const g = new THREE.BufferGeometry()
+  g.setAttribute('position', new THREE.BufferAttribute(pos, 3))
+  g.setAttribute('color', new THREE.BufferAttribute(col, 3))
+  g.setAttribute('aSize', new THREE.BufferAttribute(size, 1))
+  g.setAttribute('aFlare', new THREE.BufferAttribute(fl, 1))
+  group.add(new THREE.Points(g, starMaterial()))
+  const hit = new THREE.Mesh(new THREE.SphereGeometry(5.5, 16, 12), new THREE.MeshBasicMaterial({ visible: false }))
+  hit.userData = { type: 'shared' }
+  group.add(hit)
+  const threads = readers.map(i => {
+    const dir = P[i].clone().sub(c).normalize()
+    const end = P[i].clone().addScaledVector(dir, -AGENTS[i].R * 0.9)
+    const curve = new THREE.CatmullRomCurve3([c.clone(), c.clone().lerp(end, 0.5).add(new THREE.Vector3(0, 3, 0)), end])
+    const mat = new THREE.ShaderMaterial({
+      ...WORM, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
+      uniforms: { uTime: uniforms.uTime, uA: { value: new THREE.Color('#c4a7ff') }, uB: { value: new THREE.Color(AGENTS[i].tint) }, uHover: { value: -0.35 } },
+    })
+    scene.add(new THREE.Mesh(new THREE.TubeGeometry(curve, 48, 0.09, 6, false), mat))
+    return { curve, i, mat }
+  })
+  return { group, hit, threads, center: c }
+})()
+
+// ---------- Labels ----------
+const labelsEl = document.getElementById('labels')
+const labels = AGENTS.map((a, i) => {
+  const el = document.createElement('div')
+  el.className = 'label'
+  el.style.color = a.tint
+  el.innerHTML = `${a.label}<small>${a.n ? `${a.n} skills` : 'installed · empty'}</small>`
+  labelsEl.append(el)
+  return { el, at: () => P[i].clone().add(new THREE.Vector3(0, a.R + 1.5, 0)) }
+})
+{
+  const el = document.createElement('div')
+  el.className = 'label'; el.style.color = '#c4a7ff'
+  el.innerHTML = `Shared skills<small>~/.agents · ${SHARED.names.length}</small>`
+  labelsEl.append(el)
+  labels.push({ el, at: () => sharedHub.center.clone().add(new THREE.Vector3(0, 7, 0)) })
+}
+
+// ---------- UI: pills, legend, cards ----------
+const pills = document.getElementById('pills')
+const pill = (label, color, n, onClick) => {
+  const b = document.createElement('button')
+  b.className = 'pill'
+  b.innerHTML = `${color ? `<span class="dot" style="background:${color}"></span>` : ''}${label}${n != null ? ` <span class="n">${n}</span>` : ''}`
+  b.onclick = onClick
+  pills.append(b)
+  return b
+}
+const pillEls = [pill('All universes', null, null, () => flyOut()), ...AGENTS.map((a, i) => pill(a.label, a.tint, a.n, () => flyInto(i)))]
+const markPill = k => pillEls.forEach((b, i) => b.setAttribute('aria-pressed', String(i === k)))
+markPill(0)
+
+document.getElementById('legend').innerHTML =
+  `<h4>Legend</h4>${CATS.map(c => `<div><span class="dot" style="background:${c.color}"></span>${c.label}</div>`).join('')}<div><span class="worm"></span>Wormhole: same skill in both</div>`
+
+const tip = document.getElementById('tip')
+const esc = s => String(s).replace(/[&<>"]/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[ch])
+const agentCard = i => {
+  const a = AGENTS[i]
+  if (!a.n) return `<h3><span class="dot" style="background:${a.tint}"></span>${a.label}</h3><div class="note">Installed, but no plugins, skills or connectors were found in its folders. An unborn universe.</div>`
+  const most = Math.max(...CATS.map(c => a.byCat[c.id]))
+  const shares = TWINS.filter(t => t.includes(a.id)).map(([x, y, n]) => `${n} with ${AGENTS[byId[x === a.id ? y : x]].label}`)
+  return `<h3><span class="dot" style="background:${a.tint}"></span>${a.label}</h3>
+    <div class="figs"><div><b>${Math.ceil(a.byCat.plugins / 4)}</b><span>plugins</span></div><div><b>${a.n - a.byCat.mcp}</b><span>skills</span></div><div><b>${a.byCat.mcp}</b><span>connectors</span></div></div>
+    ${CATS.filter(c => a.byCat[c.id]).map(c => `<div class="bar"><span class="dot" style="background:${c.color}"></span><span>${c.label}</span><span class="meter"><i style="width:${Math.max(5, (a.byCat[c.id] / most) * 100)}%;background:${c.color}"></i></span><span class="v">${a.byCat[c.id]}</span></div>`).join('')}
+    <div class="note">${shares.length ? `Shares ${shares.join(' · ')}` : 'Shares nothing with the other agents'}${current === i ? '' : '<br>Click to fly in'}</div>`
+}
+const wormCard = w => `<h3><span class="dot" style="background:${AGENTS[w.i].tint}"></span>${AGENTS[w.i].label} ⟷ ${AGENTS[w.j].label}<span class="dot" style="background:${AGENTS[w.j].tint}"></span></h3>
+  <div class="note" style="margin-top:0">${w.names.length} skills installed in both</div><div class="chips">${w.names.map(n => `<span>${esc(n)}</span>`).join('')}</div>`
+const sharedCard = () => `<h3><span class="dot" style="background:#c4a7ff"></span>Shared skills</h3>
+  <div class="note" style="margin-top:0">~/.agents/skills · read by ${SHARED.readers.map(id => AGENTS[byId[id]].label).join(', ')}</div><div class="chips">${SHARED.names.map(n => `<span>${n}</span>`).join('')}</div>`
+const starCard = (i, k) => {
+  const a = AGENTS[i], s = a.skills[k], c = CATS.find(c => c.id === s.cat)
+  return `<h3><span class="dot" style="background:${c.color}"></span><code>${esc(s.name)}</code></h3>
+    <div class="note" style="margin-top:0">${c.label} · ${a.label}${s.twins.length ? `<br>Also in ${s.twins.map(id => AGENTS[byId[id]].label).join(', ')}, through a wormhole` : ''}<br>Click to open it in the reader</div>`
+}
+const showTip = (html, x, y, isPinned = false) => {
+  tip.innerHTML = html
+  tip.style.display = 'block'
+  tip.classList.toggle('pinned', isPinned)
+  const w = tip.offsetWidth, h = tip.offsetHeight
+  tip.style.left = `${Math.min(innerWidth - w - 16, x + 18)}px`
+  tip.style.top = `${Math.max(16, Math.min(innerHeight - h - 16, y + 18))}px`
+}
+const hideTip = () => { tip.style.display = 'none' }
+
+// ---------- Camera flights ----------
+let current = -1
+let flight = null
+const ease = t => (t < 0.5 ? 4 * t * t * t : 1 - (-2 * t + 2) ** 3 / 2)
+const flyTo = (pos, target, ms = 1700) => {
+  if (reduceMotion) { camera.position.copy(pos); controls.target.copy(target); return }
+  flight = { p0: camera.position.clone(), p1: pos, t0: controls.target.clone(), t1: target, start: performance.now(), ms }
+}
+function flyInto(i) {
+  const a = AGENTS[i]
+  current = i
+  markPill(i + 1)
+  controls.autoRotate = false
+  const from = camera.position.clone().sub(P[i]).normalize()
+  from.y = Math.max(from.y, 0.35); from.normalize()
+  flyTo(P[i].clone().addScaledVector(from, a.n ? a.R * 0.7 : a.R * 2.4), P[i].clone(), 1900)
+  hideTip()
+}
+function flyOut() {
+  current = -1
+  markPill(0)
+  controls.autoRotate = !reduceMotion
+  flyTo(HOME_POS.clone(), new THREE.Vector3(), 1900)
+  hideTip()
+}
+addEventListener('keydown', e => {
+  if (e.key === 'Escape' || e.key === '0') flyOut()
+  const k = Number(e.key)
+  if (k >= 1 && k <= AGENTS.length) flyInto(k - 1)
+})
+
+// ---------- Picking ----------
+const ray = new THREE.Raycaster()
+const mouse = new THREE.Vector2()
+let hovered = null
+let hoveredStar = null
+let pinned = false
+let lastMove = { x: 0, y: 0 }
+const pick = (x, y) => {
+  mouse.set((x / innerWidth) * 2 - 1, -(y / innerHeight) * 2 + 1)
+  ray.setFromCamera(mouse, camera)
+  if (current >= 0 && universes[current].stars) {
+    ray.params.Points.threshold = AGENTS[current].R * 0.035
+    const hit = ray.intersectObject(universes[current].stars)[0]
+    if (hit) return { type: 'star', i: current, k: hit.index }
+  }
+  const targets = [...bubbles.filter((_, i) => i !== current), ...worms.map(w => w.mesh), sharedHub.hit]
+  const hit = ray.intersectObjects(targets, false)[0]
+  if (!hit) return null
+  const d = hit.object.userData
+  if (d.type === 'worm') return { type: 'worm', w: worms.find(w => w.mesh === hit.object) }
+  return d
+}
+const describe = h =>
+  h.type === 'agent' ? agentCard(h.i) : h.type === 'worm' ? wormCard(h.w) : h.type === 'shared' ? sharedCard() : starCard(h.i, h.k)
+renderer.domElement.addEventListener('pointermove', e => {
+  lastMove = { x: e.clientX, y: e.clientY }
+  if (pinned) return
+  hovered = pick(e.clientX, e.clientY)
+  renderer.domElement.style.cursor = hovered ? 'pointer' : 'grab'
+  if (hovered) showTip(describe(hovered), e.clientX, e.clientY)
+  else hideTip()
+})
+let down = null
+renderer.domElement.addEventListener('pointerdown', e => { down = { x: e.clientX, y: e.clientY } })
+renderer.domElement.addEventListener('pointerup', e => {
+  if (!down || Math.hypot(e.clientX - down.x, e.clientY - down.y) > 5) return
+  const h = pick(e.clientX, e.clientY)
+  pinned = false
+  if (!h) { hideTip(); if (current >= 0 && !universes[current].stars) flyOut(); return }
+  if (h.type === 'agent') return flyInto(h.i)
+  hovered = h
+  pinned = true
+  showTip(describe(h), e.clientX, e.clientY, true)
+})
+
+// ---------- Live: flares, membrane ripples, pulses through wormholes ----------
+const log = document.getElementById('log')
+const pulses = []
+const tmp = new THREE.Vector3()
+const flareStar = (i, k) => {
+  const u = universes[i]
+  if (!u.stars) return
+  u.flare[k] = 1
+  u.stars.geometry.attributes.position
+  tmp.fromBufferAttribute(u.stars.geometry.attributes.position, k)
+  u.stars.localToWorld(tmp)
+  u.mat.uniforms.uRippleDir.value.copy(tmp.sub(P[i]).normalize())
+  u.mat.uniforms.uRippleT.value = uniforms.uTime.value
+}
+const addLog = (i, name, note = '') => {
+  const li = document.createElement('li')
+  li.innerHTML = `<span class="dot" style="background:${AGENTS[i].tint}"></span><code>${esc(name)}</code><small>${note || AGENTS[i].label}</small>`
+  log.prepend(li)
+  while (log.children.length > 4) log.lastChild.remove()
+}
+const fire = () => {
+  const live = AGENTS.map((a, i) => i).filter(i => AGENTS[i].n)
+  const i = rng() < 0.55 ? 0 : live[Math.floor(rng() * live.length)]
+  const a = AGENTS[i]
+  const twins = a.skills.filter(s => s.twins.length)
+  const s = rng() < 0.45 && twins.length ? twins[Math.floor(rng() * twins.length)] : a.skills[Math.floor(rng() * a.n)]
+  flareStar(i, universes[i].index[s.name])
+  addLog(i, s.name)
+  for (const other of s.twins) {
+    const j = byId[other]
+    const w = worms.find(w => (w.i === i && w.j === j) || (w.i === j && w.j === i))
+    const sprite = glow('#ffffff', 3.2)
+    scene.add(sprite)
+    pulses.push({ w, sprite, t: 0, forward: w.i === i, done: () => { flareStar(j, universes[j].index[s.name]); addLog(j, s.name, `twin · ${AGENTS[j].label}`) } })
+  }
+}
+let simOn = true
+let nextFire = 1.2
+const simBtn = document.getElementById('sim')
+simBtn.onclick = () => { simOn = !simOn; simBtn.setAttribute('aria-pressed', String(simOn)); simBtn.textContent = simOn ? 'Simulating' : 'Paused' }
+
+// ---------- Frame loop ----------
+const clock = new THREE.Clock()
+const hint = document.getElementById('hint')
+setTimeout(() => (hint.style.opacity = 0), 9000)
+flyTo(HOME_POS.clone(), new THREE.Vector3(), 2600)
+renderer.setAnimationLoop(() => {
+  const dt = Math.min(clock.getDelta(), 0.05)
+  const t = (uniforms.uTime.value += dt)
+  if (flight) {
+    const k = Math.min(1, (performance.now() - flight.start) / flight.ms), e = ease(k)
+    camera.position.lerpVectors(flight.p0, flight.p1, e)
+    controls.target.lerpVectors(flight.t0, flight.t1, e)
+    if (k === 1) flight = null
+  }
+  controls.update()
+
+  universes.forEach((u, i) => {
+    if (!reduceMotion) u.spin.rotation.y += dt * (0.05 + 0.3 / u.a.R)
+    const isHovered = hovered && ((hovered.type === 'agent' && hovered.i === i) || (hovered.type === 'worm' && (hovered.w.i === i || hovered.w.j === i)))
+    u.mat.uniforms.uHover.value += ((isHovered ? 1 : 0) - u.mat.uniforms.uHover.value) * 0.12
+    if (!u.a.n) u.mat.uniforms.uLevel.value = 0.4 + 0.25 * Math.sin(t * 2.3) * Math.sin(t * 0.7 + 1)
+    else u.mat.uniforms.uLevel.value = current === i ? 0.5 : 1
+    if (u.flare) {
+      let changed = false
+      for (let k = 0; k < u.flare.length; k++) if (u.flare[k] > 0) { u.flare[k] = Math.max(0, u.flare[k] - dt * 0.55); changed = true }
+      if (hovered?.type === 'star' && hovered.i === i) { u.flare[hovered.k] = Math.max(u.flare[hovered.k], 0.5); changed = true }
+      if (changed) u.stars.geometry.attributes.aFlare.needsUpdate = true
+    }
+  })
+  for (const w of worms) w.mat.uniforms.uHover.value += ((hovered?.type === 'worm' && hovered.w === w ? 1 : 0) - w.mat.uniforms.uHover.value) * 0.12
+  for (const th of sharedHub.threads) th.mat.uniforms.uHover.value = hovered?.type === 'shared' ? 0.9 : -0.35
+  if (!reduceMotion) sharedHub.group.rotation.y += dt * 0.2
+
+  for (let p = pulses.length - 1; p >= 0; p--) {
+    const pulse = pulses[p]
+    pulse.t += dt / 1.6
+    const at = Math.min(1, pulse.t)
+    pulse.sprite.position.copy(pulse.w.curve.getPointAt(pulse.forward ? at : 1 - at))
+    pulse.sprite.material.opacity = Math.sin(at * Math.PI) * 0.9 + 0.1
+    if (pulse.t >= 1) { scene.remove(pulse.sprite); pulse.done(); pulses.splice(p, 1) }
+  }
+  if (simOn && (nextFire -= dt) <= 0) { fire(); nextFire = 1.6 + rng() * 2.2 }
+
+  for (const l of labels) {
+    tmp.copy(l.at()).project(camera)
+    const isVisible = tmp.z < 1 && Math.abs(tmp.x) < 1.1 && Math.abs(tmp.y) < 1.1
+    l.el.style.display = isVisible ? 'block' : 'none'
+    if (isVisible) l.el.style.left = `${((tmp.x + 1) / 2) * innerWidth}px`, (l.el.style.top = `${((1 - tmp.y) / 2) * innerHeight}px`)
+  }
+
+  bloom.enabled = !isSmall()
+  composer.render()
+})
+
+addEventListener('resize', () => {
+  camera.aspect = innerWidth / innerHeight
+  camera.updateProjectionMatrix()
+  renderer.setSize(innerWidth, innerHeight)
+  composer.setSize(innerWidth, innerHeight)
+  scene.traverse(o => { if (o.material?.uniforms?.uScale) o.material.uniforms.uScale.value = pointScale() })
+})
+</script>
+</body>
+</html>

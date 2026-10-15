@@ -4,6 +4,7 @@
 // between planets. Click a skill to read it, a planet to fly to it; the camera
 // then follows that planet along its orbit. Click the star to see everything.
 
+import { createLoop, createScheduler } from '../frames.js'
 import { alpha, deg, destination, ESM, escapeHtml, mixHex } from '../lib.js'
 import { glowOf, heatOf, live, liveArcs, liveRings } from '../live.js'
 import {
@@ -20,12 +21,13 @@ import {
   skillsOfAgent,
   twinPairs,
 } from '../model.js'
+import { BACKGROUND, TWIN, tintOf } from '../palette.js'
 import { actions, isLitLink, isRelated, state } from '../state.js'
 import { agentSummary, allSummary } from '../summary.js'
+import { glowing, MEMBRANE, membraneUniforms, WORMHOLE, wormholeUniforms } from './shaders.js'
+import { nebulaTexture, starPoints } from './sky3d.js'
 
-const BACKGROUND = '#04060c'
-const BRANCH = '#c4a7ff'
-const TWIN = '#c4a7ff'
+const BRANCH = TWIN
 /** three-globe's radius, in scene units. */
 const RADIUS = 100
 /** The Skillverse star's radius, and the space between two orbits' planets. */
@@ -37,6 +39,7 @@ const TILT = 0.22
 const FLY_MS = 1100
 /** How close (in planet radii) the camera must be for a planet's category names to show. */
 const CATEGORY_REACH = 7
+const prefersStill = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches
 
 let THREE
 let OrbitControls
@@ -119,7 +122,7 @@ function makePlanet(a) {
   const isOwn = p => skills[p.from].agent === a && skills[p.to].agent === a
   const globe = new ThreeGlobe({ animateIn: false })
     .showAtmosphere(true)
-    .atmosphereColor('#6d8cff')
+    .atmosphereColor(tintOf(agents[a]))
     .atmosphereAltitude(0.18)
     .showGraticules(true)
     .polygonsData(ownRegions.map(continent))
@@ -187,7 +190,8 @@ function makePlanet(a) {
   group.add(globe)
   const name = document.createElement('div')
   name.className = 'planet-name'
-  name.textContent = `${agents[a].label} · ${agents[a].count}`
+  name.style.color = tintOf(agents[a])
+  name.innerHTML = `${escapeHtml(agents[a].label)}<small>${agents[a].count ? `${agents[a].count} skills` : 'installed · empty'}</small>`
   const categories = categoriesOfAgent(a).map(category => {
     const tag = document.createElement('div')
     tag.className = 'category-tag'
@@ -235,6 +239,11 @@ export const orbitView = {
     el.append(this.tip)
 
     this.scene = new THREE.Scene()
+    // The shared night sky (sky.js), drawn once for the whole page.
+    this.scene.background = nebulaTexture(THREE)
+    this.sky = starPoints(THREE, 15000)
+    this.scene.add(this.sky)
+    this.time = { value: 0 }
     // The star lights the planets; a soft ambient keeps their night side readable.
     this.scene.add(new THREE.AmbientLight(0xcbd5ff, Math.PI * 0.4))
     this.scene.add(new THREE.PointLight(0xfff2dd, Math.PI * 1.1, 0, 0))
@@ -246,6 +255,8 @@ export const orbitView = {
     this.controls.dampingFactor = 0.08
     this.controls.minDistance = 140
     this.controls.maxDistance = 4000
+    // A drag, and the damping after it, keep frames coming.
+    this.controls.addEventListener('change', () => this.wake(300))
 
     this.planets = agents.map((_, a) => makePlanet(a))
     for (const planet of this.planets) {
@@ -267,13 +278,18 @@ export const orbitView = {
     this.clock = new THREE.Clock()
     this.isActive = true
     this.isDestroyed = false
-    const frame = () => {
-      if (this.isDestroyed) return
-      requestAnimationFrame(frame)
-      // Nothing to draw for a tab nobody sees.
-      if (this.isActive && !document.hidden) this.draw(this.clock.getDelta())
-    }
-    requestAnimationFrame(frame)
+    // Draws only while something moves (frames.js): the orbits drift at a lower rate, and stop once nothing has happened for a while.
+    this.scheduler = createScheduler({ now: () => performance.now(), isDrifting: () => this.isMoving() })
+    this.loop = createLoop({
+      scheduler: this.scheduler,
+      step: () => {
+        // Nothing to draw for a tab nobody sees.
+        if (this.isActive && !document.hidden && this.scheduler.shouldDraw()) this.draw(Math.min(0.1, this.clock.getDelta()))
+      },
+      request: f => requestAnimationFrame(f),
+      cancel: id => cancelAnimationFrame(id),
+    })
+    this.wake(2000)
     for (const planet of this.planets) planet.refresh()
     this.resize()
     this.fit(0)
@@ -289,7 +305,13 @@ export const orbitView = {
         new THREE.MeshBasicMaterial({ color: 0xffb347, transparent: true, opacity, blending: THREE.AdditiveBlending, depthWrite: false }),
       )
     const corona = glow(1.3, 0.22)
-    group.add(core, corona, glow(1.9, 0.07))
+    // An iridescent rim, the same skin as the Multiverse view's universes.
+    const rim = new THREE.Mesh(
+      new THREE.SphereGeometry(STAR * 1.12, 48, 32),
+      new THREE.ShaderMaterial({ ...MEMBRANE, ...glowing(THREE), uniforms: membraneUniforms(THREE, '#ffd98a', this.time) }),
+    )
+    rim.raycast = () => {}
+    group.add(core, corona, glow(1.9, 0.07), rim)
     this.scene.add(group)
     const name = document.createElement('div')
     name.className = 'planet-name is-centre'
@@ -333,16 +355,44 @@ export const orbitView = {
     }
   },
 
-  /** One line segment per twin pair, redrawn as planets move; the selected skill's are bright. */
+  /**
+   * One wormhole per pair of agents that share skills: a tube from one
+   * planet's tint to the other's, thicker with more twins, moved with the
+   * planets each frame. The selected or hovered skill's own twins are bright lines.
+   */
   makeBridges() {
-    const geometry = new THREE.BufferGeometry()
-    geometry.setAttribute('position', new THREE.BufferAttribute(new Float32Array(twinPairs.length * 6), 3))
-    const faint = new THREE.LineSegments(geometry, new THREE.LineBasicMaterial({ color: TWIN, transparent: true, opacity: 0.06 }))
+    const counts = new Map()
+    for (const [x, y] of twinPairs) {
+      const [a, b] = [skills[x].agent, skills[y].agent].sort((p, q) => p - q)
+      if (a !== b) counts.set(`${a}-${b}`, (counts.get(`${a}-${b}`) ?? 0) + 1)
+    }
+    const tubes = [...counts].map(([key, count]) => {
+      const [a, b] = key.split('-').map(Number)
+      // Built along z from 0 to 1, then placed, turned and stretched between the two planets.
+      const geometry = new THREE.TubeGeometry(
+        new THREE.LineCurve3(new THREE.Vector3(0, 0, 0), new THREE.Vector3(0, 0, 1)),
+        48,
+        1.2 + Math.sqrt(count) * 0.9,
+        10,
+      )
+      const mesh = new THREE.Mesh(
+        geometry,
+        new THREE.ShaderMaterial({
+          ...WORMHOLE,
+          ...glowing(THREE),
+          side: THREE.DoubleSide,
+          uniforms: wormholeUniforms(THREE, tintOf(agents[a]), tintOf(agents[b]), this.time),
+        }),
+      )
+      mesh.raycast = () => {}
+      this.scene.add(mesh)
+      return { a, b, mesh }
+    })
     const litGeometry = new THREE.BufferGeometry()
     litGeometry.setAttribute('position', new THREE.BufferAttribute(new Float32Array(32 * 6), 3))
     const lit = new THREE.LineSegments(litGeometry, new THREE.LineBasicMaterial({ color: TWIN, transparent: true, opacity: 0.9 }))
-    this.scene.add(faint, lit)
-    return { faint, lit }
+    this.scene.add(lit)
+    return { tubes, lit }
   },
 
   /** Where a skill sits in the scene now (its planet moves). */
@@ -352,15 +402,26 @@ export const orbitView = {
     return planet.group.localToWorld(new THREE.Vector3(c.x, c.y, c.z))
   },
 
+  isMoving() {
+    return state.motion !== false && !prefersStill()
+  },
+
+  /** Something happened: draw for `ms`, and start the loop if it stopped. */
+  wake(ms = 1200) {
+    if (this.isDestroyed || !this.loop) return
+    this.loop.wake(ms)
+  },
+
   draw(dt) {
-    // Orbits pause while a planet is hovered or a skill is open, so neither runs away.
-    const isPaused = this.hovered.planet >= 0 || state.selected >= 0
+    // Orbits pause while a planet is hovered or a skill is open, so neither runs away; and with Motion off.
+    const isPaused = this.hovered.planet >= 0 || state.selected >= 0 || !this.isMoving()
     for (const planet of this.planets) {
       if (!isPaused) planet.angle += planet.speed * dt
       planet.group.position.copy(orbitPosition(planet))
       planet.group.rotation.y += isPaused ? 0 : dt * 0.05
     }
     this.star.corona.scale.setScalar(1 + 0.03 * Math.sin(performance.now() / 900))
+    this.time.value += dt
     this.scene.updateMatrixWorld()
     this.flyStep()
     this.followStep()
@@ -368,20 +429,27 @@ export const orbitView = {
     this.drawNames()
     this.controls.update()
     for (const planet of this.planets) planet.globe.setPointOfView(this.camera)
+    this.sky.position.copy(this.camera.position)
     this.renderer.render(this.scene, this.camera)
   },
 
   drawBridges() {
-    const faint = this.bridges.faint.geometry.attributes.position
-    for (const [k, [a, b]] of twinPairs.entries()) {
-      const p = this.worldOf(a)
-      const q = this.worldOf(b)
-      faint.setXYZ(k * 2, p.x, p.y, p.z)
-      faint.setXYZ(k * 2 + 1, q.x, q.y, q.z)
-    }
-    faint.needsUpdate = true
-    const lit = this.bridges.lit.geometry.attributes.position
     const focus = state.selected >= 0 ? state.selected : state.hover
+    const focusAgent = focus >= 0 ? skills[focus].agent : this.hovered.planet
+    for (const { a, b, mesh } of this.bridges.tubes) {
+      const p = this.planets[a].group.position
+      const q = this.planets[b].group.position
+      const along = q.clone().sub(p).normalize()
+      const start = p.clone().addScaledVector(along, RADIUS * this.planets[a].scale * 1.05)
+      const end = q.clone().addScaledVector(along, -RADIUS * this.planets[b].scale * 1.05)
+      mesh.position.copy(start)
+      mesh.lookAt(end)
+      mesh.scale.set(1, 1, Math.max(1, start.distanceTo(end)))
+      const isLit = focusAgent === a || focusAgent === b
+      const level = mesh.material.uniforms.uLit
+      level.value += ((isLit ? 1 : 0) - level.value) * 0.12
+    }
+    const lit = this.bridges.lit.geometry.attributes.position
     const ends = focus >= 0 ? skills[focus].twins.slice(0, 32) : []
     for (const [k, j] of ends.entries()) {
       const p = this.worldOf(focus)
@@ -488,6 +556,7 @@ export const orbitView = {
       at: performance.now(),
       ms,
     }
+    this.wake(ms + 400)
   },
   flyStep() {
     const f = this.flight
@@ -587,6 +656,7 @@ export const orbitView = {
     const canvas = this.renderer.domElement
     let down
     canvas.addEventListener('pointermove', event => {
+      this.wake(600)
       const hit = this.pick(event)
       if (hit.i !== this.hovered.i) {
         state.hover = hit.i
@@ -619,7 +689,9 @@ export const orbitView = {
         actions.refresh()
       }
     })
+    canvas.addEventListener('wheel', () => this.wake(800), { passive: true })
     canvas.addEventListener('pointerdown', event => {
+      this.wake()
       down = { x: event.clientX, y: event.clientY }
       // Taking the camera mid-flight ends the flight, but keeps following its planet.
       const f = this.flight
@@ -643,6 +715,7 @@ export const orbitView = {
 
   refresh() {
     for (const planet of this.planets) planet.refresh()
+    this.wake(400)
   },
   resize() {
     const { clientWidth: w, clientHeight: h } = this.el
@@ -651,10 +724,13 @@ export const orbitView = {
     this.camera.aspect = w / h
     this.camera.updateProjectionMatrix()
     for (const planet of this.planets) planet.globe.rendererSize(new THREE.Vector2(w, h))
+    this.wake(300)
   },
   /** Frees every geometry, texture and the WebGL context; init builds it all again. */
   destroy() {
     this.isDestroyed = true
+    this.loop?.stop()
+    this.scene.background?.dispose()
     this.scene.traverse(object => {
       object.geometry?.dispose()
       for (const material of [object.material].flat()) material?.dispose()
@@ -663,7 +739,7 @@ export const orbitView = {
     this.renderer.dispose()
     this.renderer.forceContextLoss()
     this.el.replaceChildren()
-    Object.assign(this, { scene: undefined, planets: undefined, renderer: undefined, flight: undefined, following: -1 })
+    Object.assign(this, { scene: undefined, planets: undefined, renderer: undefined, flight: undefined, following: -1, loop: undefined })
   },
   pause() {
     this.isActive = false
@@ -671,5 +747,6 @@ export const orbitView = {
   resume() {
     this.isActive = true
     this.clock.getDelta()
+    this.wake()
   },
 }

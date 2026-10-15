@@ -10,10 +10,16 @@ Add each change under **Unreleased** as you make it; `pnpm version` moves them u
 
 - `skillverse install` writes hooks and the `/skillverse` skill for every agent on the machine, or the ones you pick. With no names in a terminal, a list starts with all of them checked.
 - `skillverse remove` takes that back for one agent or all of them: hooks, the `/skillverse` skill, backups, and empty directories that held only those files.
+- A Multiverse view in the web app: each agent a universe, with wormholes between agents that share skills, closer together the more they share. Live activity ripples a universe and pulses through its wormholes. `?perf=1` shows what it draws.
+- A colour for each agent, in the planet switcher, the cards, the Live feed and every view; anything in more than one agent is lilac.
+- **Motion** in the canvas tools turns the slow drift in Orbit and Multiverse on or off.
 
 ### Changed
 
 - `skillverse setup` installs, and `skillverse setup --undo` removes. The help text shows `install` and `remove`.
+- The web view's look: lavender text, translucent cards and bar, and one night sky behind every view, drawn once when the page loads.
+- Orbit and Multiverse draw only while something moves, and nothing at all once nothing has happened for a while.
+- Twin bridges in Orbit are wormholes between planets, in the two agents' colours.
 
 ## [0.3.2] - 2026-10-12
 
