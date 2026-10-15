@@ -6,6 +6,15 @@ Add each change under **Unreleased** as you make it; `pnpm version` moves them u
 
 ## [Unreleased]
 
+### Added
+
+- `skillverse install` writes hooks and the `/skillverse` skill for every agent on the machine, or the ones you pick. With no names in a terminal, a list starts with all of them checked.
+- `skillverse remove` takes that back for one agent or all of them: hooks, the `/skillverse` skill, backups, and empty directories that held only those files.
+
+### Changed
+
+- `skillverse setup` installs, and `skillverse setup --undo` removes. The help text shows `install` and `remove`.
+
 ## [0.3.2] - 2026-10-12
 
 ### Added

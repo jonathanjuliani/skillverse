@@ -54,7 +54,8 @@ skillverse open
 | `skillverse open` | Open it in the browser, starting it if needed |
 | `skillverse status` | Whether it runs, where, how many pages are open |
 | `skillverse stop` | Stop the web app `skillverse run` started |
-| `skillverse setup [<agent>]` | Send another agent's live activity to the web app (`--print`, `--undo`); see [Live activity from other agents](use.md#live-activity-from-other-agents) |
+| `skillverse install [<agent>...]` | Send other agents' live activity to the web app (`--all`, `--print`); see [Live activity from other agents](use.md#live-activity-from-other-agents) |
+| `skillverse remove [<agent>...]` | Take that back: hooks, the `/skillverse` skill, and backups (`--all`, `--print`) |
 | `skillverse run --here` | Run it in this terminal instead (Ctrl+C stops it) |
 | `skillverse` | The terminal app (`--scan` reads the disk instead of the plugin's list) |
 

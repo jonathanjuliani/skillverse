@@ -20,13 +20,15 @@ Usage:
   skillverse status                          is it running, and where
   skillverse summary [--agent <id>] [--json] what each agent has, and what it costs in context
   skillverse stop                            stop the web app skillverse run started
-  skillverse setup [<agent>] [--undo] [--print]
-                                             send an agent's live events to the web app (no agent: list them)
-  skillverse hook <agent>                    what an agent's hook runs (setup writes it; reads stdin)
+  skillverse install [<agent>...] [--all] [--print]
+                                             install live events for agents on this machine (no names: choose, all selected)
+  skillverse remove [<agent>...] [--all] [--print]
+                                             remove those hooks, the /skillverse skill, and backups
+  skillverse hook <agent>                    what an agent's hook runs (install writes it; reads stdin)
   skillverse --version | --help
 
 The port: --port, else SKILLVERSE_PORT, else the first free one of 4317-4320.
-The Claude Code plugin sends its live events to the web app when it runs; skillverse setup does it for other agents.
+The Claude Code plugin sends its live events to the web app when it runs; skillverse install does it for other agents.
 Log: ${LOG_FILE.replace(os.homedir(), '~')}`
 
 const argv = process.argv.slice(2)
@@ -83,9 +85,13 @@ async function main() {
       )
       return
     }
-    case 'setup': {
-      const { setup } = await import('./setup.mjs')
-      return setup(argv[1]?.startsWith('-') ? undefined : argv[1], { isUndo: flag('--undo'), isPrint: flag('--print') })
+    case 'install':
+    case 'setup':
+    case 'remove': {
+      const { install } = await import('./setup.mjs')
+      const names = argv.slice(1).filter(arg => !arg.startsWith('-'))
+      const isRemove = command === 'remove' || (command === 'setup' && flag('--undo'))
+      return install(names, { isRemove, isPrint: flag('--print'), isAll: flag('--all') })
     }
     case 'summary': {
       const { printSummary } = await import('./summary.mjs')

@@ -9,6 +9,6 @@ npm i -g @jonathanjuliani/skillverse
 skillverse run
 ```
 
-The panel's **Start it** button runs that last command in a terminal. To see an agent's skills load live, set it up once: `skillverse setup <agent>`.
+The panel's **Start it** button runs that last command in a terminal. To see an agent's skills load live, install it once: `skillverse install <agent>`.
 
 Settings: `skillverse.port` (default: the port `skillverse run` picked) and `skillverse.agent` (default: this editor's agent).

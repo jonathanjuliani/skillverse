@@ -10,8 +10,20 @@ import { sendHook } from '../../cli/hook.mjs'
 import { promptSkill, skillFileIn, toEvents } from '../../cli/hook-events.mjs'
 // @ts-expect-error: a plain ES module without types (cli/ is JavaScript)
 import { health } from '../../cli/server.mjs'
-// @ts-expect-error: a plain ES module without types (cli/ is JavaScript)
-import { hookCommand, isNpxCache, planSetup, planSkill, setupStatus, skillFile } from '../../cli/setup.mjs'
+import {
+  choicesFor,
+  hookCommand,
+  install,
+  isNpxCache,
+  onKey,
+  parseSelection,
+  pickerState,
+  planSetup,
+  planSkill,
+  setupStatus,
+  skillFile,
+  // @ts-expect-error: a plain ES module without types (cli/ is JavaScript)
+} from '../../cli/setup.mjs'
 
 // What Cursor sends its hooks (cursor.com/docs/agent/hooks), trimmed to the fields read.
 const cursor = {
@@ -298,5 +310,199 @@ describe('setup', () => {
   it('knows the npx cache', () => {
     expect(isNpxCache('/Users/me/.npm/_npx/abc/node_modules/@jonathanjuliani/skillverse/cli/skillverse.mjs')).toBe(true)
     expect(isNpxCache('/usr/local/lib/node_modules/@jonathanjuliani/skillverse/cli/skillverse.mjs')).toBe(false)
+  })
+
+  it('still removes a /skillverse skill written by skillverse setup', () => {
+    const file = skillFile('codex', home)
+    fs.mkdirSync(path.dirname(file), { recursive: true })
+    fs.writeFileSync(
+      file,
+      '---\nname: skillverse\n---\n<!-- Written by skillverse setup; skillverse setup <agent> --undo removes it. -->\n',
+    )
+    expect(planSkill('codex', { home, isUndo: true }).after).toBeNull()
+    expect(planSkill('codex', { home }).after).toContain('skillverse remove')
+  })
+})
+
+const sampleAgents = [
+  { id: 'cursor', label: 'Cursor', state: 'not installed', aliases: [] as string[] },
+  { id: 'codex', label: 'Codex', state: 'installed', aliases: [] as string[] },
+  { id: 'copilot', label: 'GitHub Copilot', state: 'not installed', aliases: ['vscode', 'github-copilot'] },
+]
+
+describe('picker', () => {
+  it('starts with every agent checked, and space on one clears all', () => {
+    let state = pickerState(sampleAgents)
+    expect(state.selection).toEqual({ all: true, ids: ['cursor', 'codex', 'copilot'] })
+    state = onKey(state, { name: 'down' }).state
+    state = onKey(state, { name: 'space' }).state
+    expect(state.selection.all).toBe(false)
+    expect(state.selection.ids).toEqual(['codex', 'copilot'])
+    state = onKey(state, { name: 'up' }).state
+    state = onKey(state, { name: 'space' }).state
+    expect(state.selection).toEqual({ all: true, ids: ['cursor', 'codex', 'copilot'] })
+  })
+
+  it('confirms a typed number, name, alias, or all', () => {
+    const state = pickerState(sampleAgents)
+    expect(onKey({ ...state, buffer: '2' }, { name: 'return' })).toMatchObject({ action: 'confirm', ids: ['cursor'] })
+    expect(onKey({ ...state, buffer: 'cursor' }, { name: 'return' })).toMatchObject({ action: 'confirm', ids: ['cursor'] })
+    expect(onKey({ ...state, buffer: 'vscode' }, { name: 'return' })).toMatchObject({ action: 'confirm', ids: ['copilot'] })
+    expect(onKey({ ...state, buffer: 'all' }, { name: 'return' })).toMatchObject({ action: 'confirm', ids: ['cursor', 'codex', 'copilot'] })
+    expect(onKey({ ...state, buffer: '1' }, { name: 'return' })).toMatchObject({ action: 'confirm', ids: ['cursor', 'codex', 'copilot'] })
+    expect(parseSelection('2, vscode', sampleAgents)).toEqual(['cursor', 'copilot'])
+    expect(onKey(state, { name: 'return' })).toMatchObject({ action: 'confirm', ids: ['cursor', 'codex', 'copilot'] })
+    expect(onKey(state, { name: 'escape' })).toMatchObject({ action: 'cancel' })
+    expect(onKey({ ...state, buffer: 'nobody' }, { name: 'return' }).state.error).toMatch(/not nobody/)
+  })
+})
+
+describe('install and remove', () => {
+  let home = ''
+  const logs: string[] = []
+  const errors: string[] = []
+  let log: typeof console.log
+  let error: typeof console.error
+  let exitCode: typeof process.exitCode
+
+  beforeAll(() => {
+    log = console.log
+    error = console.error
+    console.log = (line?: unknown) => {
+      logs.push(String(line))
+    }
+    console.error = (line?: unknown) => {
+      errors.push(String(line))
+    }
+  })
+
+  afterAll(() => {
+    console.log = log
+    console.error = error
+  })
+
+  const fresh = () => {
+    logs.length = 0
+    errors.length = 0
+    exitCode = process.exitCode
+    process.exitCode = undefined
+    home = fs.mkdtempSync(path.join(os.tmpdir(), 'skillverse-install-'))
+    fs.mkdirSync(path.join(home, '.codex'), { recursive: true })
+    fs.mkdirSync(path.join(home, '.gemini'), { recursive: true })
+    fs.writeFileSync(path.join(home, '.codex', 'hooks.json'), JSON.stringify({ hooks: { Stop: [{ command: 'mine' }] } }))
+  }
+
+  const done = () => {
+    process.exitCode = exitCode
+    fs.rmSync(home, { recursive: true, force: true })
+  }
+
+  it('lists installed agents for install and only Skillverse ones for remove', async () => {
+    fresh()
+    try {
+      expect(choicesFor('install', home).map((one: { id: string }) => one.id)).toEqual(['codex', 'gemini'])
+      expect(choicesFor('remove', home)).toEqual([])
+      await install(['codex'], { home, isTTY: false })
+      expect(choicesFor('install', home).find((one: { id: string }) => one.id === 'codex')).toMatchObject({ state: 'installed' })
+      expect(choicesFor('remove', home).map((one: { id: string }) => one.id)).toEqual(['codex'])
+      expect(choicesFor('remove', home)[0]).toMatchObject({ state: 'hooks, skill' })
+    } finally {
+      done()
+    }
+  })
+
+  it('installs two agents, keeps the shared skill when one is removed, and clears the last', async () => {
+    fresh()
+    try {
+      await install(['codex', 'gemini'], { home, isTTY: false })
+      const skill = skillFile('codex', home)
+      const backup = path.join(home, '.codex', 'hooks.json.skillverse-backup')
+      expect(fs.existsSync(skill)).toBe(true)
+      expect(fs.readFileSync(skill, 'utf8')).toContain('skillverse remove')
+      expect(fs.existsSync(backup)).toBe(true)
+      expect(fs.readFileSync(path.join(home, '.gemini', 'settings.json'), 'utf8')).toContain('hook gemini')
+
+      await install(['codex'], { home, isTTY: false, isRemove: true })
+      expect(fs.existsSync(skill)).toBe(true)
+      expect(fs.existsSync(backup)).toBe(false)
+      expect(JSON.parse(fs.readFileSync(path.join(home, '.codex', 'hooks.json'), 'utf8'))).toEqual({
+        hooks: { Stop: [{ command: 'mine' }] },
+      })
+      expect(choicesFor('remove', home).map((one: { id: string }) => one.id)).toEqual(['gemini'])
+
+      await install(['gemini'], { home, isTTY: false, isRemove: true })
+      expect(fs.existsSync(skill)).toBe(false)
+      expect(fs.existsSync(path.dirname(skill))).toBe(false)
+      expect(fs.readFileSync(path.join(home, '.gemini', 'settings.json'), 'utf8')).not.toContain('skillverse')
+    } finally {
+      done()
+    }
+  })
+
+  it('removes an owned hooks file and leaves the agent folder', async () => {
+    fresh()
+    try {
+      fs.mkdirSync(path.join(home, '.copilot'))
+      await install(['copilot'], { home, isTTY: false })
+      const hooks = path.join(home, '.copilot', 'hooks')
+      expect(fs.existsSync(path.join(hooks, 'skillverse.json'))).toBe(true)
+      await install(['vscode'], { home, isTTY: false, isRemove: true })
+      expect(fs.existsSync(hooks)).toBe(false)
+      expect(fs.existsSync(path.join(home, '.copilot'))).toBe(true)
+    } finally {
+      done()
+    }
+  })
+
+  it('installs every available agent with --all, and does not write when there is no terminal', async () => {
+    fresh()
+    try {
+      await install([], { home, isTTY: false })
+      expect(fs.existsSync(path.join(home, '.gemini', 'settings.json'))).toBe(false)
+      expect(logs.join('\n')).toMatch(/skillverse install --all/)
+      await install([], { home, isTTY: false, isAll: true })
+      expect(fs.readFileSync(path.join(home, '.codex', 'hooks.json'), 'utf8')).toContain('hook codex')
+      expect(fs.readFileSync(path.join(home, '.gemini', 'settings.json'), 'utf8')).toContain('hook gemini')
+    } finally {
+      done()
+    }
+  })
+
+  it('uses the picker result, and a broken hooks file does not stop the other agent', async () => {
+    fresh()
+    try {
+      await install([], { home, isTTY: true, ask: async () => ['codex'] })
+      expect(fs.readFileSync(path.join(home, '.codex', 'hooks.json'), 'utf8')).toContain('hook codex')
+      expect(fs.existsSync(path.join(home, '.gemini', 'settings.json'))).toBe(false)
+
+      fs.writeFileSync(path.join(home, '.codex', 'hooks.json'), '{ broken')
+      await install(['codex', 'gemini'], { home, isTTY: false })
+      expect(errors.join('\n')).toMatch(/not plain JSON/)
+      expect(process.exitCode).toBe(1)
+      expect(fs.readFileSync(path.join(home, '.gemini', 'settings.json'), 'utf8')).toContain('hook gemini')
+      expect(fs.readFileSync(path.join(home, '.codex', 'hooks.json'), 'utf8')).toBe('{ broken')
+    } finally {
+      done()
+    }
+  })
+
+  it('refuses an agent that is not on this machine before writing the others', async () => {
+    fresh()
+    try {
+      await expect(install(['codex', 'windsurf'], { home, isTTY: false })).rejects.toThrow(/Windsurf is not installed here/)
+      expect(fs.readFileSync(path.join(home, '.codex', 'hooks.json'), 'utf8')).not.toContain('skillverse')
+    } finally {
+      done()
+    }
+  })
+
+  it('says when remove finds nothing of Skillverse', async () => {
+    fresh()
+    try {
+      await install(['windsurf'], { home, isTTY: false, isRemove: true })
+      expect(logs.join('\n')).toMatch(/had nothing Skillverse installed/)
+    } finally {
+      done()
+    }
   })
 })

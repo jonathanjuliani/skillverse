@@ -31,32 +31,32 @@ Every command is in [Install](docs/install.md).
 
 ## Live events from other agents
 
-Claude Code sends live events through the plugin. For the agents below, the web app has to be running, then setup once. Restart the agent afterward so it loads the hooks.
+Claude Code sends live events through the plugin. For the agents below, the web app has to be running, then install once. Restart the agent afterward so it loads the hooks.
 
 ```bash
 skillverse run
-skillverse setup cursor
+skillverse install
 ```
 
-| Agent | Setup |
+| Agent | Install |
 | --- | --- |
-| Cursor (editor and CLI) | `skillverse setup cursor` |
-| Codex (CLI and app) | `skillverse setup codex`, then trust the hooks with `/hooks` |
-| GitHub Copilot CLI and VS Code | `skillverse setup copilot` |
-| Gemini CLI | `skillverse setup gemini` |
-| Devin CLI | `skillverse setup devin` |
-| Windsurf | `skillverse setup windsurf` |
-| Antigravity | `skillverse setup antigravity` |
-| opencode | `skillverse setup opencode` |
+| Cursor (editor and CLI) | `skillverse install cursor` |
+| Codex (CLI and app) | `skillverse install codex`, then trust the hooks with `/hooks` |
+| GitHub Copilot CLI and VS Code | `skillverse install copilot` |
+| Gemini CLI | `skillverse install gemini` |
+| Devin CLI | `skillverse install devin` |
+| Windsurf | `skillverse install windsurf` |
+| Antigravity | `skillverse install antigravity` |
+| opencode | `skillverse install opencode` |
 
-`skillverse setup` with no name lists which of these are installed and which are already set up. `--print` previews the file. `--undo` removes Skillverse's entries. Cursor writes `~/.cursor/hooks.json`; a skill shows when a prompt starts with `/name` or the agent reads a `SKILL.md`. The file each command writes is in [Use](docs/use.md#live-activity-from-other-agents).
+`skillverse install` with no names asks which agents, with every one on this machine already checked. `skillverse install --all` installs those without asking. `skillverse remove` takes the hooks, the `/skillverse` skill, and backups back the same way. `--print` previews the files. Cursor writes `~/.cursor/hooks.json`; a skill shows when a prompt starts with `/name` or the agent reads a `SKILL.md`. The file each command writes is in [Use](docs/use.md#live-activity-from-other-agents).
 
 ## Where it shows
 
 - **Pane.** The Claude Code plugin, a mod of function hooks that draws its own UI. A Skillverse button opens a tree of this session's skills, what they cost, and which ones loaded.
 - **Web app.** A page on localhost for every agent on the machine: orbit, a 3D graph, and a 2D graph.
 - **Terminal app.** `/sv-it` is a full-screen globe, graph, and tree. `skillverse --agent codex` shows another agent's.
-- **Other agents.** The setup above sends their activity to the web app and adds a `/skillverse` skill that prints that agent's summary. `skillverse summary` prints it anywhere.
+- **Other agents.** The install above sends their activity to the web app and adds a `/skillverse` skill that prints that agent's summary. `skillverse summary` prints it anywhere.
 - **Editor panel.** The VS Code extension in [`vscode/`](vscode/) shows the web app in a side panel of VS Code, Cursor, Windsurf or Antigravity, on that editor's own agent.
 
 ## Release

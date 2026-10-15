@@ -37,7 +37,7 @@ Each planet is split into **Plugins**, **Your skills**, **Built-in**, and **Conn
 
 ### Inside other agents and editors
 
-- **`/skillverse` in any agent.** `skillverse setup <agent>` also adds a `/skillverse` skill (in `~/.agents/skills/`, or Cursor's and Antigravity's own skills folder). Typed in the agent, it prints that agent's summary: its plugins, skills and connectors, each category's share, what its skill descriptions cost every session, and the web app's address.
+- **`/skillverse` in any agent.** `skillverse install` also adds a `/skillverse` skill (in `~/.agents/skills/`, or Cursor's and Antigravity's own skills folder). Typed in the agent, it prints that agent's summary: its plugins, skills and connectors, each category's share, what its skill descriptions cost every session, and the web app's address.
 - **`skillverse summary [--agent <id>] [--json]`** prints the same in any terminal: every agent, or one. It reads the running web app (which knows what Claude Code sessions measured), else scans.
 - **The terminal app for any agent.** `skillverse --agent codex` opens Codex's globe, graph and tree; keep it in a split pane next to a CLI agent.
 - **A panel in your editor.** The VS Code extension (`vscode/`; `pnpm run vscode:package` builds the `.vsix`) shows the web app in a side panel of VS Code, Cursor, Windsurf or Antigravity, opened on that editor's agent (Copilot in VS Code). When the web app is not running, the panel's **Start it** runs `skillverse run` in a terminal. Install the `.vsix` with **Extensions: Install from VSIX…**.
@@ -45,14 +45,17 @@ Each planet is split into **Plugins**, **Your skills**, **Built-in**, and **Conn
 
 ### Live activity from other agents
 
-Other agents send their activity through their own hooks. Set one up once:
+Other agents send their activity through their own hooks. Install once:
 
 ```bash
-skillverse setup          # which agents can, and which are set up
-skillverse setup cursor   # adds Skillverse's hooks to ~/.cursor/hooks.json
+skillverse install            # asks, with every agent on this machine checked
+skillverse install --all      # those agents, without asking
+skillverse install cursor     # adds Skillverse's hooks to ~/.cursor/hooks.json
+skillverse remove             # asks which installed agents to take back
+skillverse remove --all       # hooks, the /skillverse skill, and backups
 ```
 
-| Agent | `skillverse setup …` | Writes | A skill shows when |
+| Agent | `skillverse install …` | Writes | A skill shows when |
 | --- | --- | --- | --- |
 | Cursor (editor and CLI) | `cursor` | `~/.cursor/hooks.json` | a prompt starts with `/name`; it reads a `SKILL.md` |
 | Codex (CLI and app) | `codex` | `~/.codex/hooks.json` | a prompt starts with `$name` or `/name`; it reads a `SKILL.md`. **Then trust the hooks once with `/hooks` in Codex.** |
@@ -63,7 +66,11 @@ skillverse setup cursor   # adds Skillverse's hooks to ~/.cursor/hooks.json
 | Antigravity | `antigravity` | `~/.gemini/config/hooks.json` | it reads a skill file (it has no hook for prompts) |
 | opencode | `opencode` | `~/.config/opencode/plugins/skillverse.js` | its skill tool runs |
 
-`--print` shows the file it would write without writing it, and `--undo` removes exactly Skillverse's entries. In a shared file the rest is kept, and the old file is saved next to it with `.skillverse-backup` added. Copilot's file and opencode's plugin are Skillverse's own, so undo removes them. Run it from a global install (`npm i -g`) or a clone, not `npx`: the hook calls this copy of Skillverse by its full path, and so the Node it ran with. After switching Node versions or moving a clone, run `skillverse setup <agent>` again. Restart the agent to load its hooks.
+In a terminal, `skillverse install` and `skillverse remove` with no names show a list. Item 1 is all of them and starts checked. Space toggles a row, Enter confirms, and a typed number, name, or alias (then Enter) chooses that instead. Esc changes nothing. Without a terminal, the command prints the list and does not write; pass names or `--all`.
+
+`--print` shows the files it would write or delete. In a shared file the rest is kept, and the old file is saved next to it with `.skillverse-backup` added. `skillverse remove` takes Skillverse's hooks out of that file, deletes the backup, and deletes the `/skillverse` skill Skillverse wrote. The shared copy in `~/.agents/skills` stays while another agent that reads it is still installed, and goes with the last one. Copilot's file and opencode's plugin are Skillverse's own, so remove deletes them. A skill file Skillverse did not write is left alone.
+
+Run it from a global install (`npm i -g`) or a clone, not `npx`: the hook calls this copy of Skillverse by its full path, and so the Node it ran with. After switching Node versions or moving a clone, run `skillverse install` again. Restart the agent to load its hooks. `skillverse setup` still installs, and `skillverse setup --undo` still removes.
 
 Only Claude Code, Gemini CLI and opencode say which skill loaded; for the others it is spotted as the table says. A skill an agent reads from `~/.agents/skills` lights up on the Shared planet.
 
